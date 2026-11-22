@@ -52,6 +52,14 @@ h3{font:700 18px var(--cond);letter-spacing:.06em;text-transform:uppercase;margi
 .slot{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 .slot label{font:400 20px var(--disp);color:var(--acc);min-width:34px;text-align:center}
 .slot input{flex:1;min-width:0}
+.slot .grip{cursor:grab;touch-action:none;user-select:none;color:var(--mute);font-size:20px;line-height:1;padding:6px 4px;letter-spacing:-3px}
+.slot .grip:hover{color:var(--acc)}
+.slot.over{outline:2px dashed var(--acc);background:color-mix(in srgb,var(--acc) 14%,var(--panel2))}
+.slot.src{opacity:.45}
+.chip.pick{cursor:grab;touch-action:none;user-select:none}
+.chip.pick:hover{border-color:var(--acc)}
+#slotChips.over{outline:2px dashed var(--warn);outline-offset:3px;border-radius:8px}
+#dragGhost{position:fixed;pointer-events:none;z-index:70;background:var(--acc);color:#111;padding:6px 12px;border-radius:8px;font:700 16px var(--cond);letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translate(-50%,-130%)}
 .slot.bad{border-color:var(--bad)}
 .slot.bad::after{content:"✕";color:var(--bad);font-weight:700}
 input,select,textarea{background:#0d1018;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font:inherit;width:100%}
@@ -297,7 +305,7 @@ function slotErrors(){ // returns {slot: msg}
 }
 function renderSlots(){
   const L=S.lobby[curG]||{}; let h='';
-  for(let s=S.cfg.slotMin;s<=S.cfg.slotMax;s++) h+=`<div class="slot" data-s="${s}"><label>#${s}</label><input list="teamList" data-s="${s}" value="${esc(L[s]||'')}" placeholder="Search team…" autocomplete="off"></div>`;
+  for(let s=S.cfg.slotMin;s<=S.cfg.slotMax;s++) h+=`<div class="slot" data-s="${s}"><label>#${s}</label><span class="grip" data-from="${s}" title="Drag to move / swap">⋮⋮</span><input list="teamList" data-s="${s}" value="${esc(L[s]||'')}" placeholder="Search team…" autocomplete="off"></div>`;
   $('slots').innerHTML=h; slotStatus();
 }
 function slotStatus(){
@@ -306,7 +314,7 @@ function slotStatus(){
   const used=new Set(Object.values(L).map(norm)), left=g.teams.filter(t=>!used.has(norm(t.name)));
   let c=`<span class="chip ${n>=8?'g2':'w'}">${n} teams seated</span>`;
   if(Object.keys(err).length) c+=`<span class="chip b">${Object.keys(err).length} slot problem(s)</span>`;
-  if(left.length) c+=`<span class="chip">${left.length} roster team(s) not seated: ${esc(left.slice(0,4).map(t=>t.name).join(', '))}${left.length>4?'…':''}</span>`;
+  if(left.length) c+=`<span class="chip">Not seated (drag into a slot):</span>`+left.map(t=>`<span class="chip pick" data-team="${esc(t.name)}">${esc(t.name)}</span>`).join('');
   $('slotChips').innerHTML=c; $('btnSaveLobby').disabled=!!Object.keys(err).length||n<2;
 }
 function canon(v){ const t=grp(curG).teams.find(t=>norm(t.name)===norm(v)); return t?t.name:v; }
@@ -533,6 +541,34 @@ document.addEventListener('click',async e=>{
 });
 $('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; slotStatus(); updatePromptInfo(); });
 $('slots').addEventListener('change',e=>{ const s=e.target.dataset.s; if(!s) return; const c=canon(e.target.value.trim()); e.target.value=c; S.lobby[curG][s]=c; save(); slotStatus(); updatePromptInfo(); });
+/* ---------- drag & drop (mouse + touch) ---------- */
+let drag=null;
+const slotAt=(x,y)=>document.elementFromPoint(x,y)?.closest('.slot');
+function dragClear(){ document.querySelectorAll('.slot.over,.slot.src').forEach(d=>d.classList.remove('over','src')); $('slotChips').classList.remove('over'); }
+document.addEventListener('pointerdown',e=>{
+  const el=e.target.closest('.grip[data-from],.chip.pick[data-team]'); if(!el||!curG) return;
+  const L=S.lobby[curG]||{}, from=el.dataset.from||null, team=from?L[from]:el.dataset.team;
+  if(!team) return; e.preventDefault();
+  const g=document.createElement('div'); g.id='dragGhost'; g.textContent=team; document.body.appendChild(g);
+  g.style.left=e.clientX+'px'; g.style.top=e.clientY+'px';
+  if(from) document.querySelector(`.slot[data-s="${from}"]`)?.classList.add('src');
+  drag={from,team,g};
+});
+document.addEventListener('pointermove',e=>{ if(!drag) return;
+  drag.g.style.left=e.clientX+'px'; drag.g.style.top=e.clientY+'px';
+  document.querySelectorAll('.slot.over').forEach(d=>d.classList.remove('over')); $('slotChips').classList.remove('over');
+  const t=slotAt(e.clientX,e.clientY); if(t&&t.dataset.s!==drag.from) t.classList.add('over');
+  else if(drag.from && document.elementFromPoint(e.clientX,e.clientY)?.closest('#slotChips')) $('slotChips').classList.add('over');
+});
+function dragEnd(e,cancel){ if(!drag) return; const d=drag; drag=null; d.g.remove();
+  const x=e.clientX,y=e.clientY, t=cancel?null:slotAt(x,y), L=(S.lobby[curG]=S.lobby[curG]||{}); dragClear();
+  if(t && t.dataset.s!==d.from){ const to=t.dataset.s;
+    if(d.from){ const tmp=L[to]||''; L[to]=L[d.from]; L[d.from]=tmp; } else L[to]=d.team;
+    save(); renderSlots(); updatePromptInfo(); }
+  else if(!cancel && d.from && document.elementFromPoint(x,y)?.closest('#slotChips')){ L[d.from]=''; save(); renderSlots(); updatePromptInfo(); }
+}
+document.addEventListener('pointerup',e=>dragEnd(e,false));
+document.addEventListener('pointercancel',e=>dragEnd(e,true));
 $('btnResetSlots').onclick=()=>{ delete S.lobby[curG]; selectGroup(curG); };
 $('btnSaveLobby').onclick=async()=>{ save(); renderGrid(); updatePromptInfo(); if(!S.cfg.apiUrl) return toast('Lobby saved on this device'); try{ await api('saveLobby',{group:curG,slots:lobbyPayload()}); toast('Lobby saved to sheet ✔'); }catch(e){ toast('Sheet error: '+e.message,true); } };
 $('btnCopyPrompt').onclick=async()=>{ try{ await navigator.clipboard.writeText(buildPrompt(curG)); toast('Copied. Paste it in Claude and attach the screenshots'); }catch(e){ $('paste').value=buildPrompt(curG); toast('Clipboard blocked: prompt placed in the box below, copy it from there',true); } };
