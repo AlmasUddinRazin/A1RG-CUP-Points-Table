@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A1RG Points Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0c12; --panel:#121620; --panel2:#171c28; --line:#252c3b; --text:#e9edf5; --mute:#8a93a6;
+  --acc:#ffb703; --ok:#2ecc71; --warn:#ffb020; --bad:#ff4d5e;
+  --disp:'Anton','Impact',sans-serif; --cond:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 var(--body);
+  background-image:radial-gradient(900px 400px at 85% -10%,color-mix(in srgb,var(--acc) 14%,transparent),transparent),
+  repeating-linear-gradient(115deg,rgba(255,255,255,.018) 0 2px,transparent 2px 14px)}
+header{position:sticky;top:0;z-index:20;background:rgba(10,12,18,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{max-width:1280px;margin:auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font:400 26px var(--disp);letter-spacing:.04em;text-transform:uppercase}
+.brand b{color:var(--acc);font-weight:400}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--mute);font:600 17px var(--cond);letter-spacing:.06em;text-transform:uppercase;padding:8px 14px;cursor:pointer;border-bottom:3px solid transparent}
+nav button.on{color:var(--text);border-color:var(--acc)}
+.pill{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--mute)}
+.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.pill.off{color:var(--warn)}
+main{max-width:1280px;margin:auto;padding:18px 16px 80px}
+section{display:none}section.on{display:block}
+h2{font:700 24px var(--cond);letter-spacing:.06em;text-transform:uppercase;margin:0 0 4px}
+h3{font:700 18px var(--cond);letter-spacing:.06em;text-transform:uppercase;margin:0}
+.sub{color:var(--mute);margin:0 0 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.step{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.step i{font:400 18px var(--disp);font-style:normal;background:var(--acc);color:#111;width:30px;height:30px;border-radius:6px;display:grid;place-items:center}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.g{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer;color:var(--text);position:relative}
+.g b{display:block;font:400 24px var(--disp)}
+.g small{color:var(--mute);font:600 12px var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.g.sel{outline:2px solid var(--acc);background:color-mix(in srgb,var(--acc) 12%,var(--panel2))}
+.g::after{content:"";position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--line)}
+.g.lob::after{background:var(--warn)}.g.done::after{background:var(--ok)}
+.legend{display:flex;gap:14px;color:var(--mute);font-size:13px;margin-top:10px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--line)}
+.legend .l1::before{background:var(--warn)}.legend .l2::before{background:var(--ok)}
+.meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--mute);margin-bottom:12px}
+.meta b{color:var(--text);font-weight:600}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:8px}
+.slot{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.slot label{font:400 20px var(--disp);color:var(--acc);min-width:34px;text-align:center}
+.slot input{flex:1;min-width:0}
+.slot.bad{border-color:var(--bad)}
+.slot.bad::after{content:"✕";color:var(--bad);font-weight:700}
+input,select,textarea{background:#0d1018;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font:inherit;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--acc) 70%,transparent);border-color:transparent}
+textarea{min-height:150px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+button.btn{background:var(--acc);color:#111;border:0;border-radius:7px;padding:9px 16px;font:700 16px var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+button.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+button.btn:disabled{opacity:.4;cursor:not-allowed}
+button.btn:hover:not(:disabled){filter:brightness(1.1)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.sp{justify-content:space-between}
+.note{font-size:13px;color:var(--mute)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font:600 13px var(--cond);letter-spacing:.05em;padding:3px 9px;border-radius:99px;background:var(--panel2);border:1px solid var(--line)}
+.chip.w{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.chip.b{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.chip.g2{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid #1b2130;vertical-align:middle}
+td.n,th.n{text-align:center}
+td input,td select{padding:5px 8px}
+td input.num{width:64px;text-align:center}
+tr.q td:first-child{box-shadow:inset 4px 0 var(--acc)}
+.tot{font:700 20px var(--cond);color:var(--acc)}
+.rk{font:400 20px var(--disp)}
+.flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.two{grid-template-columns:1fr}nav{margin-left:0;width:100%}.brand{font-size:22px}}
+label.f{display:block;font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:10px 0 4px}
+.sw{display:flex;gap:8px}.sw button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.sw button.on{border-color:#fff}
+canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#000;display:block}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#fff;color:#111;padding:10px 18px;border-radius:8px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90vw}
+#toast.show{opacity:1}#toast.err{background:var(--bad);color:#fff}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div class="brand"><span id="brandName">A1RG CUP</span> <b>Points Desk</b></div>
+  <span class="pill off" id="syncPill">Local only</span>
+  <nav id="nav">
+    <button data-t="desk" class="on">Match Desk</button>
+    <button data-t="stand">Standings</button>
+    <button data-t="poster">Poster</button>
+    <button data-t="set">Settings</button>
+  </nav>
+</div></header>
+
+<main>
+<!-- ================= MATCH DESK ================= -->
+<section id="desk" class="on">
+  <div class="card">
+    <div class="step"><i>1</i><div><h3>Pick the group</h3><div class="note">Click the group that is playing now.</div></div></div>
+    <div class="groups" id="groupGrid"></div>
+    <div class="legend"><span>No data</span><span class="l1">Lobby saved</span><span class="l2">Result saved</span></div>
+  </div>
+
+  <div id="deskBody" style="display:none">
+    <div class="card">
+      <div class="step"><i>2</i><div><h3>Lobby slots · <span id="gTitle"></span></h3><div class="note">Type a team name (search). Slots start at #5. Leave a slot empty if nobody sits there.</div></div></div>
+      <div class="meta" id="gMeta"></div>
+      <div class="slots" id="slots"></div>
+      <datalist id="teamList"></datalist>
+      <div class="row sp" style="margin-top:12px">
+        <div class="chips" id="slotChips"></div>
+        <div class="row">
+          <button class="btn ghost" id="btnResetSlots">Reset to sheet order</button>
+          <button class="btn" id="btnSaveLobby">Save lobby</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step"><i>3</i><div><h3>Message for Claude</h3><div class="note">Copy this, paste it into Claude, attach the lobby + result screenshots, send.</div></div></div>
+      <div class="row"><button class="btn" id="btnCopyPrompt">Copy message for Claude</button><span class="note" id="promptInfo"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="step"><i>4</i><div><h3>Paste Claude's table</h3><div class="note">Paste the whole table Claude gives you. The site re-calculates every point and flags anything suspicious.</div></div></div>
+      <textarea id="paste" placeholder="Finish Position&#9;Team Name&#9;Chicken Dinner&#9;Placement Point&#9;Kill Point&#9;Total Point&#9;Team Email&#9;Slot No."></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn" id="btnParse">Check result</button><button class="btn ghost" id="btnClearPaste">Clear</button></div>
+    </div>
+
+    <div class="card" id="draftCard" style="display:none">
+      <div class="step"><i>5</i><div><h3>Review &amp; save</h3><div class="note">Fix anything highlighted. Points update live.</div></div></div>
+      <div class="chips" id="draftChips"></div>
+      <div class="tw"><table id="draftTable"></table></div>
+      <div class="row sp" style="margin-top:12px">
+        <div class="row"><select id="addMissing" style="width:auto"></select><button class="btn ghost" id="btnAddRow">Add team</button></div>
+        <button class="btn" id="btnSaveResult">Save result to sheet</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STANDINGS ================= -->
+<section id="stand">
+  <div class="card">
+    <div class="row sp"><div><h2>Group standings</h2><p class="sub" style="margin:0">Ranked by total points · ties: chicken dinner → placement pts → kills → best finish.</p></div>
+      <select id="standGroup" style="width:auto"></select></div>
+  </div>
+  <div class="card"><div class="tw" id="standBox"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn ghost" id="btnCopyTsv">Copy for Sheets</button>
+      <button class="btn ghost" id="btnCsv">Download CSV</button>
+      <button class="btn ghost" id="btnEdit">Edit this result</button>
+      <button class="btn" id="btnToPoster">Make poster</button>
+    </div></div>
+  <div class="card"><h3 style="margin-bottom:10px">Qualified teams so far</h3><div id="qualBox"></div></div>
+</section>
+
+<!-- ================= POSTER ================= -->
+<section id="poster">
+  <div class="two" style="grid-template-columns:320px 1fr;align-items:start">
+    <div class="card">
+      <h2>Poster</h2>
+      <label class="f">Group No.</label><select id="pGroup"></select>
+      <label class="f">Tournament name</label><input id="pName">
+      <label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING">
+      <label class="f">Accent colour</label>
+      <div class="sw" id="pSw"></div>
+      <label class="f">Background picture</label>
+      <select id="pImg"><option value="a">Asset 1 (images 10)</option><option value="b">Asset 2 (images 9)</option><option value="c">Custom URL</option><option value="n">None</option></select>
+      <input id="pImgUrl" placeholder="https://…" style="margin-top:8px;display:none">
+      <div class="row" style="margin-top:14px"><button class="btn" id="btnDl">Download PNG</button><button class="btn ghost" id="btnCopyImg">Copy image</button></div>
+      <p class="note" id="pNote"></p>
+    </div>
+    <div><canvas id="cv" width="1920" height="1080"></canvas></div>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section id="set">
+  <div class="card">
+    <h2>Google Sheet connection</h2>
+    <p class="sub">Deploy <code>Code.gs</code> as a Web App (see README) and paste its URL + your passcode here. Every match admin does this once on their device.</p>
+    <label class="f">Apps Script Web App URL</label><input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec">
+    <label class="f">Admin passcode</label><input id="sKey" type="password" autocomplete="off">
+    <div class="row" style="margin-top:12px"><button class="btn" id="btnConnect">Save &amp; load from sheet</button><button class="btn ghost" id="btnDemo">Load demo roster</button><button class="btn ghost" id="btnWipe">Wipe local data</button></div>
+    <p class="note" id="sNote"></p>
+  </div>
+  <div class="card">
+    <h2>Scoring</h2>
+    <p class="sub">When connected to the sheet, scoring comes from <code>CONFIG</code> in Code.gs, so every admin uses identical rules.</p>
+    <div class="two">
+      <div><label class="f">Placement points (1st, 2nd, 3rd …; rest = 0)</label><input id="sPlace"></div>
+      <div><label class="f">Points per kill</label><input id="sKill" type="number" min="0" step="0.5"></div>
+      <div><label class="f">Teams qualifying per group</label><input id="sQual" type="number" min="1"></div>
+      <div><label class="f">Slot range</label><div class="row"><input id="sSlotMin" type="number" style="width:90px"><span>to</span><input id="sSlotMax" type="number" style="width:90px"></div></div>
+    </div>
+  </div>
+</section>
+</main>
+<div id="toast"></div>
+
+<script>
+/* =====================  DEFAULTS (edit here once)  ===================== */
+const IMG = {
+  a:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(10).jfif',
+  b:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(9).jfif'
+};
+const DEFAULTS = {
+  apiUrl:'', key:'', tournament:'A1RG CUP', sub:'OVERALL STANDING',
+  placement:[10,6,5,4,3,2,1,1], kill:1, qualify:8, slotMin:5, slotMax:20,
+  accent:'#ffb703', img:'a', imgUrl:''
+};
+const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
+
+/* =====================  STATE  ===================== */
+const LS = 'a1rg_desk_v1';
+let S;
+try { S = JSON.parse(localStorage.getItem(LS)||'null'); } catch(e){ S=null; }
+S = Object.assign({cfg:{}, roster:[], lobby:{}, results:{}}, S||{});
+S.cfg = Object.assign({}, DEFAULTS, S.cfg);
+let curG = null, draft = null, standG = null;
+const $ = id => document.getElementById(id);
+const save = () => { try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){} };
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='show'+(err?' err':''); clearTimeout(toast.t); toast.t=setTimeout(()=>t.className='',err?4500:2200); }
+
+/* =====================  API  ===================== */
+async function api(action, payload){
+  const {apiUrl,key} = S.cfg; if(!apiUrl) throw new Error('No sheet connected');
+  let r;
+  if(action==='all') r = await fetch(`${apiUrl}${apiUrl.includes('?')?'&':'?'}action=all&key=${encodeURIComponent(key)}`);
+  else r = await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,key},payload))});
+  const j = await r.json(); if(!j.ok) throw new Error(j.error||'Sheet error'); return j;
+}
+function setPill(){ const p=$('syncPill'); const on=!!S.cfg.apiUrl; p.textContent=on?'Sheet connected':'Local only'; p.className='pill '+(on?'ok':'off'); }
+async function pull(quiet){
+  const j = await api('all');
+  if(j.config) Object.assign(S.cfg, {tournament:j.config.tournament, placement:j.config.placement, kill:j.config.kill, qualify:j.config.qualify, slotMin:j.config.slotMin, slotMax:j.config.slotMax});
+  S.roster = j.roster; S.results = j.results||{};
+  Object.keys(j.lobby||{}).forEach(g=>{ S.lobby[g] = {}; j.lobby[g].forEach(t=>S.lobby[g][t.slot]=t.name); });
+  save(); renderAll(); if(!quiet) toast('Loaded '+S.roster.length+' groups from sheet');
+}
+
+/* =====================  HELPERS  ===================== */
+const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const grp = n => S.roster.find(g=>g.no===n);
+const pts = pos => S.cfg.placement[pos-1] ?? 0;
+function lev(a,b){ const m=[...Array(a.length+1)].map((_,i)=>[i]); for(let j=1;j<=b.length;j++)m[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return m[a.length][b.length]; }
+function lobbyTeams(g){ // [{slot,name,email}]
+  const gg = grp(g); const L = S.lobby[g]||{}; const out=[];
+  Object.keys(L).map(Number).sort((a,b)=>a-b).forEach(slot=>{
+    const name=L[slot]; if(!name) return; const t=gg?.teams.find(t=>norm(t.name)===norm(name));
+    out.push({slot,name:t?t.name:name,email:t?.email||''});
+  }); return out;
+}
+function rankRows(rows){ // rows have pos,kills -> adds place,total,wwcd,rank
+  rows.forEach(r=>{ r.place=pts(r.pos); r.total=r.place+r.kills*S.cfg.kill; r.wwcd=r.pos===1?1:0; });
+  [...rows].sort((a,b)=>b.total-a.total||b.wwcd-a.wwcd||b.place-a.place||b.kills-a.kills||a.pos-b.pos).forEach((r,i)=>r.rank=i+1);
+  return rows;
+}
+const fmtTime = t => { const m=/(\d{1,2}:\d{2})(?::\d{2})?\s*([AP]M)/i.exec(t||''); return m?m[1]+' '+m[2].toUpperCase():(t||''); };
+
+/* =====================  MATCH DESK  ===================== */
+function status(g){ return S.results[g]?'done':(S.lobby[g]&&Object.values(S.lobby[g]).some(Boolean)?'lob':''); }
+function renderGrid(){
+  if(!S.roster.length){ $('groupGrid').innerHTML='<div class="empty">No groups yet. Open <b>Settings</b> → connect your sheet (or load the demo roster).</div>'; return; }
+  $('groupGrid').innerHTML = S.roster.map(g=>`<button class="g ${status(g.no)} ${g.no===curG?'sel':''}" data-g="${g.no}"><b>${g.no}</b><small>${esc(fmtTime(g.time))}</small></button>`).join('');
+}
+function selectGroup(n){
+  curG=n; draft=null; $('draftCard').style.display='none'; $('paste').value='';
+  const g=grp(n); if(!S.lobby[n]){ // prefill from sheet: only teams that have an email
+    S.lobby[n]={}; g.teams.forEach(t=>{ if(t.email) S.lobby[n][t.slot]=t.name; });
+  }
+  $('deskBody').style.display='block'; renderGrid(); renderSlots(); updatePromptInfo();
+  $('gTitle').textContent='Group '+n; $('gMeta').innerHTML=`<span>Date <b>${esc(g.date)}</b></span><span>Time <b>${esc(fmtTime(g.time))}</b></span><span>Map <b>${esc(g.map)}</b></span><span>Teams in group <b>${g.teams.length}</b></span>`;
+  $('teamList').innerHTML = g.teams.map(t=>`<option value="${esc(t.name)}">`).join('');
+}
+function slotErrors(){ // returns {slot: msg}
+  const g=grp(curG), L=S.lobby[curG]||{}, seen={}, err={};
+  Object.keys(L).forEach(s=>{ const v=L[s]; if(!v) return;
+    const t=g.teams.find(t=>norm(t.name)===norm(v)); if(!t) err[s]='Not a team of this group';
+    else if(seen[norm(t.name)]) err[s]='Duplicate'; else seen[norm(t.name)]=1; });
+  return err;
+}
+function renderSlots(){
+  const L=S.lobby[curG]||{}; let h='';
+  for(let s=S.cfg.slotMin;s<=S.cfg.slotMax;s++) h+=`<div class="slot" data-s="${s}"><label>#${s}</label><input list="teamList" data-s="${s}" value="${esc(L[s]||'')}" placeholder="Search team…" autocomplete="off"></div>`;
+  $('slots').innerHTML=h; slotStatus();
+}
+function slotStatus(){
+  const err=slotErrors(), L=S.lobby[curG]||{}, n=Object.values(L).filter(Boolean).length, g=grp(curG);
+  document.querySelectorAll('.slot').forEach(d=>d.classList.toggle('bad',!!err[d.dataset.s]));
+  const used=new Set(Object.values(L).map(norm)), left=g.teams.filter(t=>!used.has(norm(t.name)));
+  let c=`<span class="chip ${n>=8?'g2':'w'}">${n} teams seated</span>`;
+  if(Object.keys(err).length) c+=`<span class="chip b">${Object.keys(err).length} slot problem(s)</span>`;
+  if(left.length) c+=`<span class="chip">${left.length} roster team(s) not seated: ${esc(left.slice(0,4).map(t=>t.name).join(', '))}${left.length>4?'…':''}</span>`;
+  $('slotChips').innerHTML=c; $('btnSaveLobby').disabled=!!Object.keys(err).length||n<2;
+}
+function canon(v){ const t=grp(curG).teams.find(t=>norm(t.name)===norm(v)); return t?t.name:v; }
+function lobbyPayload(){ return lobbyTeams(curG).map(t=>({slot:t.slot,name:t.name,email:t.email})); }
+function updatePromptInfo(){ const n=lobbyTeams(curG).length; $('promptInfo').textContent = n? `${n} teams will be included in the message.`:'Seat teams in step 2 first.'; $('btnCopyPrompt').disabled=!n; }
+
+function buildPrompt(g){
+  const lt=lobbyTeams(g), c=S.cfg, P=c.placement;
+  const ptsTxt = P.map((p,i)=>`#${i+1}: ${p}`).join(', ')+`, #${P.length+1} and below: 0`;
+  return `You are an expert PUBG Mobile tournament result processor for ${c.tournament}. Extract, calculate and format ONE match (Group ${g}) from screenshots into a sheet-ready table.
+
+LOBBY (authoritative slot → team; teams sit on slots ${c.slotMin}–${c.slotMax}):
+Slot\tTeam Name\tTeam Email
+${lt.map(t=>`${t.slot}\t${t.name}\t${t.email}`).join('\n')}
+
+SCREENSHOTS I ATTACH:
+1. Lobby screenshot(s): slot numbers with player names.
+2. End-of-match standing screenshot(s): finish position (#1, #2, #3…) with each player's eliminations.
+
+HOW TO WORK:
+- Use the lobby screenshot to link every player name to a Slot No. Then take the Team Name and Team Email ONLY from the LOBBY list above (copy the spelling exactly).
+- Team kills = sum of all its players' eliminations.
+- Finish Position = the team's rank on the end-of-match screen.
+- Placement Point by finish position: ${ptsTxt}.
+- Kill Point = ${c.kill} × kills. Total Point = Placement Point + Kill Point.
+- Chicken Dinner = 1 for finish position #1, otherwise 0.
+- Never output player names.
+
+CRITICAL RULES:
+- Cross-check every number twice before answering. One misread digit ruins the standings.
+- NEVER guess. If a name is cut off, a screenshot is missing, or a slot/team cannot be matched with 100% certainty, still output the row but put ⚠️ at the end of that row, and list what is missing below the table.
+- Every team in the LOBBY list must appear exactly once.
+
+OUTPUT: only a single tab-separated table inside ONE code block, sorted by Finish Position (1st → last), with exactly this header row:
+Finish Position\tTeam Name\tChicken Dinner\tPlacement Point\tKill Point\tTotal Point\tTeam Email\tSlot No.
+No other text before the code block. If there are ⚠️ rows, add a short list of issues after it.`;
+}
+
+/* ---------- paste → parse ---------- */
+function parseTable(text){
+  text=text.replace(/```[a-z]*/gi,'').replace(/\r/g,'').trim();
+  let lines=text.split('\n').map(l=>l.trim()).filter(l=>l && !/^[\s|:\-+]+$/.test(l));
+  let rows=lines.map(l=>{ if(l.includes('\t')) return l.split('\t').map(s=>s.trim());
+    if(l.includes('|')) return l.split('|').map(s=>s.trim()).filter((s,i,a)=>!(s===''&&(i===0||i===a.length-1)));
+    return l.split(/\s{2,}|,/).map(s=>s.trim()); });
+  if(!rows.length) return {rows:[],issues:['Nothing pasted']};
+  let map={pos:0,team:1,wwcd:2,place:3,kill:4,total:5,email:6,slot:7};
+  if(!/^\W*\d+\W*$/.test(rows[0][0]||'')){ // header
+    const h=rows.shift().map(x=>x.toLowerCase()); const find=re=>h.findIndex(x=>re.test(x));
+    const m={pos:find(/position|rank|^#/),team:find(/team name|^team$/),wwcd:find(/chicken|wwcd/),place:find(/placement|place/),kill:find(/kill|elim/),total:find(/total/),email:find(/email/),slot:find(/slot/)};
+    Object.keys(m).forEach(k=>{ if(m[k]>=0) map[k]=m[k]; else if(['pos','team','kill'].includes(k)) {/* keep default */} else map[k]=-1; });
+  }
+  const num=v=>{ const n=parseInt(String(v??'').replace(/[^\d-]/g,''),10); return isNaN(n)?null:n; };
+  const out=rows.map(r=>{
+    const raw=r.join(' '), flag=/⚠/.test(raw), clean=r.map(x=>String(x).replace(/⚠️?/g,'').trim());
+    return {pos:num(clean[map.pos]),team:clean[map.team]||'',kills:num(clean[map.kill]),cPlace:map.place>=0?num(clean[map.place]):null,cTotal:map.total>=0?num(clean[map.total]):null,email:map.email>=0?clean[map.email]:'',slot:map.slot>=0?num(clean[map.slot]):null,flag};
+  });
+  return {rows:out,issues:[]};
+}
+function resolveRow(r, lt){
+  const notes=[]; let t=null;
+  if(r.slot!=null) t=lt.find(x=>x.slot===r.slot)||null;
+  if(t && norm(r.team) && norm(r.team)!==norm(t.name)){
+    const byName=lt.find(x=>norm(x.name)===norm(r.team));
+    if(byName && byName.slot!==t.slot){ notes.push(['b',`Slot ${r.slot} is ${t.name} but name says ${byName.name}. Check!`]); t=null; }
+    else notes.push(['w',`Name differs from lobby slot ${r.slot} (“${r.team}”). Used slot.`]);
+  }
+  if(!t && r.email) t=lt.find(x=>x.email && norm(x.email)===norm(r.email))||null;
+  if(!t && r.team) t=lt.find(x=>norm(x.name)===norm(r.team))||null;
+  if(!t && r.team){ let best=null,bd=99; lt.forEach(x=>{ const d=lev(norm(x.name),norm(r.team)); if(d<bd){bd=d;best=x;} });
+    if(best && bd<=Math.max(2,Math.floor(norm(best.name).length*.2))){ t=best; notes.push(['w',`Fuzzy match “${r.team}” → ${best.name}`]); } }
+  if(!t) notes.push(['b','Team not recognised. Pick it manually.']);
+  return {t,notes};
+}
+function startDraft(rows, fromSaved){
+  const lt=lobbyTeams(curG);
+  const d=rows.map(r=>{ if(fromSaved){ return {pos:r.pos,slot:r.slot,kills:r.kills,notes:[]}; }
+    const {t,notes}=resolveRow(r,lt); if(r.flag) notes.unshift(['w','Claude flagged this row ⚠️']);
+    if(r.pos==null) notes.push(['b','Finish position unreadable']); if(r.kills==null) notes.push(['b','Kills unreadable']);
+    return {pos:r.pos??0,slot:t?t.slot:'',kills:r.kills??0,notes,claude:r}; });
+  draft={g:curG,rows:d}; renderDraft();
+}
+function draftIssues(){
+  const lt=lobbyTeams(draft.g), b=[], w=[]; const seenS={},seenP={};
+  draft.rows.forEach((r,i)=>{ if(!r.slot) b.push(`Row ${i+1}: no team selected`);
+    else if(seenS[r.slot]) b.push(`Team in slot ${r.slot} appears twice`); seenS[r.slot]=1;
+    if(!(r.pos>=1)) b.push(`Row ${i+1}: bad finish position`); else if(seenP[r.pos]) b.push(`Finish position #${r.pos} used twice`); seenP[r.pos]=1;
+    if(!(r.kills>=0)||!Number.isInteger(r.kills)) b.push(`Row ${i+1}: bad kills`);
+    if(r.claude){ const calc=pts(r.pos)+r.kills*S.cfg.kill; if(r.claude.cTotal!=null && r.claude.cTotal!==calc) w.push(`Slot ${r.slot||'?'}: Claude total ${r.claude.cTotal} ≠ calculated ${calc} (calculated one is used)`); }
+  });
+  const missing=lt.filter(t=>!seenS[t.slot]); if(missing.length) w.push(`${missing.length} seated team(s) missing from result: ${missing.map(m=>m.name).join(', ')}`);
+  const ps=draft.rows.map(r=>r.pos).sort((a,b)=>a-b); if(ps.length&&ps.some((p,i)=>p!==i+1)) w.push('Finish positions are not 1…N without gaps');
+  return {b,w,missing};
+}
+function renderDraft(){
+  const lt=lobbyTeams(draft.g); rankRows(draft.rows);
+  const {b,w,missing}=draftIssues();
+  $('draftCard').style.display='block';
+  let c=`<span class="chip g2">${draft.rows.length} rows</span>`; b.forEach(x=>c+=`<span class="chip b">${esc(x)}</span>`); w.forEach(x=>c+=`<span class="chip w">${esc(x)}</span>`); $('draftChips').innerHTML=c;
+  const opt=cur=>`<option value="">— select team —</option>`+lt.map(t=>`<option value="${t.slot}" ${t.slot==cur?'selected':''}>#${t.slot} · ${esc(t.name)}</option>`).join('');
+  $('draftTable').innerHTML=`<thead><tr><th class="n">Finish</th><th>Team</th><th class="n">Kills</th><th class="n">Place</th><th class="n">Total</th><th class="n">Rank</th><th></th><th></th></tr></thead><tbody>`+
+   [...draft.rows.keys()].sort((a,b)=>(draft.rows[a].pos||99)-(draft.rows[b].pos||99)).map(i=>{ const r=draft.rows[i];
+    return `<tr class="${r.rank<=S.cfg.qualify?'q':''}"><td class="n"><input class="num" type="number" min="1" data-i="${i}" data-f="pos" value="${r.pos}"></td>
+    <td><select data-i="${i}" data-f="slot">${opt(r.slot)}</select>${(r.notes||[]).map(n=>`<div class="flag ${n[0]=='b'?'b':''}">${esc(n[1])}</div>`).join('')}</td>
+    <td class="n"><input class="num" type="number" min="0" data-i="${i}" data-f="kills" value="${r.kills}"></td>
+    <td class="n">${r.place}</td><td class="n tot">${r.total}</td><td class="n rk">${r.rank}</td><td class="n">${r.wwcd?'🐔':''}</td>
+    <td><button class="btn ghost" style="padding:3px 9px" data-del="${i}">✕</button></td></tr>`; }).join('')+`</tbody>`;
+  $('addMissing').innerHTML=missing.length? missing.map(m=>`<option value="${m.slot}">#${m.slot} · ${esc(m.name)}</option>`).join(''):'<option value="">(no missing teams)</option>';
+  $('btnAddRow').disabled=!missing.length; $('btnSaveResult').disabled=b.length>0||!draft.rows.length;
+}
+
+async function saveResult(){
+  const {b,w}=draftIssues(); if(b.length) return;
+  if(w.length && !confirm('There are warnings:\n\n• '+w.join('\n• ')+'\n\nSave anyway?')) return;
+  const lt=lobbyTeams(draft.g);
+  const rows=rankRows(draft.rows).map(r=>{ const t=lt.find(x=>x.slot==r.slot); return {pos:r.pos,slot:+r.slot,team:t.name,email:t.email,wwcd:r.wwcd,place:r.place,kills:r.kills,total:r.total,rank:r.rank}; }).sort((a,b)=>a.rank-b.rank);
+  S.results[draft.g]={rows,savedAt:new Date().toISOString()}; save(); renderGrid();
+  if(S.cfg.apiUrl){ $('btnSaveResult').disabled=true; try{ await api('saveResult',{group:draft.g,slots:lobbyPayload(),rows}); toast(`Group ${draft.g} saved to sheet ✔`); }catch(e){ toast('Saved on this device only. Sheet error: '+e.message,true); } $('btnSaveResult').disabled=false; }
+  else toast(`Group ${draft.g} saved locally (no sheet connected)`);
+  standG=draft.g; renderStand();
+}
+
+/* =====================  STANDINGS  ===================== */
+function standOptions(){ const done=Object.keys(S.results).map(Number).sort((a,b)=>a-b);
+  const html=done.map(g=>`<option value="${g}">Group ${g}</option>`).join('')||'<option value="">No results yet</option>';
+  $('standGroup').innerHTML=html; if(!done.includes(standG)) standG=done[0]??null; $('standGroup').value=standG??'';
+  $('pGroup').innerHTML=html; $('pGroup').value=standG??''; }
+function standTable(rows){ return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th><th class="n">Total</th></tr></thead><tbody>`+
+  rows.map(r=>`<tr class="${r.rank<=S.cfg.qualify?'q':''}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td><td class="n tot">${r.total}</td></tr>`).join('')+`</tbody></table>`; }
+function renderStand(){
+  standOptions(); const r=S.results[standG];
+  $('standBox').innerHTML = r? standTable(r.rows) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
+  ['btnCopyTsv','btnCsv','btnEdit','btnToPoster'].forEach(i=>$(i).disabled=!r);
+  const q=Object.keys(S.results).map(Number).sort((a,b)=>a-b).map(g=>`<div style="margin-bottom:10px"><b style="font-family:var(--cond);letter-spacing:.06em">GROUP ${g}</b><div class="chips">${S.results[g].rows.filter(x=>x.rank<=S.cfg.qualify).map(x=>`<span class="chip">${x.rank}. ${esc(x.team)}</span>`).join('')}</div></div>`).join('');
+  $('qualBox').innerHTML=q||'<div class="note">Nothing yet.</div>';
+}
+const tsv = rows => ['Overall Match Rank','Team Name','Chicken Dinner','Placement Point','Kill Point','Total Point','Team Email'].join('\t')+'\n'+rows.map(r=>[r.rank,r.team,r.wwcd||'',r.place,r.kills,r.total,r.email].join('\t')).join('\n');
+
+/* =====================  POSTER  ===================== */
+const imgCache={};
+function loadImg(url){ return new Promise(res=>{ if(!url) return res(null); if(imgCache[url]!==undefined) return res(imgCache[url]);
+  const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(imgCache[url]=i); i.onerror=()=>res(imgCache[url]=null); i.src=url; }); }
+function posterImgUrl(){ const c=S.cfg; return c.img==='n'?'':c.img==='c'?c.imgUrl:IMG[c.img]; }
+const hexA=(h,a)=>{ const n=parseInt(h.slice(1),16); return `rgba(${n>>16},${n>>8&255},${n&255},${a})`; };
+function fitText(x,txt,maxW,size,font){ let s=size; do{ x.font=`${font.w} ${s}px ${font.f}`; if(x.measureText(txt).width<=maxW||s<=12) break; s-=1; }while(true); return s; }
+let drawing=0;
+async function drawPoster(){
+  const my=++drawing, cv=$("cv"), x=cv.getContext('2d'), W=1920, H=1080, acc=S.cfg.accent;
+  const g=standG, res=S.results[g]; const info=grp(g);
+  try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
+  const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
+  $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded (check the URL / that the repo is public). Drawing without it.' : '';
+  // background
+  x.fillStyle='#090b10'; x.fillRect(0,0,W,H);
+  if(img){ const r=Math.max((W*.5)/img.width,H/img.height), w=img.width*r, h=img.height*r; x.save(); x.beginPath(); x.rect(W*.5,0,W*.5,H); x.clip(); x.drawImage(img,W-w+(w-W*.5)*.25,(H-h)/2,w,h); x.restore();
+    let gr=x.createLinearGradient(W*.42,0,W*.82,0); gr.addColorStop(0,'#090b10'); gr.addColorStop(1,'rgba(9,11,16,.25)'); x.fillStyle=gr; x.fillRect(W*.42,0,W*.58,H); }
+  let rg=x.createRadialGradient(240,0,0,240,0,900); rg.addColorStop(0,hexA(acc,.32)); rg.addColorStop(1,hexA(acc,0)); x.fillStyle=rg; x.fillRect(0,0,W,H);
+  x.save(); x.strokeStyle='rgba(255,255,255,.03)'; x.lineWidth=2; for(let i=-H;i<W;i+=26){ x.beginPath(); x.moveTo(i,H); x.lineTo(i+H,0); x.stroke(); } x.restore();
+  // top + bottom accent rails
+  x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
+  if(!res){ x.fillStyle='#8a93a6'; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
+  // title
+  x.textBaseline='alphabetic'; x.letterSpacing='8px'; x.fillStyle=acc; x.font='700 34px "Barlow Condensed"'; x.fillText((S.cfg.sub||'OVERALL STANDING').toUpperCase(),70,92); x.letterSpacing='0px';
+  const name=(S.cfg.tournament||'TOURNAMENT').toUpperCase(); const ts=fitText(x,name,1180,128,{w:'400',f:'Anton'});
+  x.fillStyle='#fff'; x.font=`400 ${ts}px Anton`; x.fillText(name,66,92+ts*.98);
+  x.fillStyle=acc; x.fillRect(70,92+ts*.98+16,150,8);
+  // group badge
+  const bx=1470,by=48,bw=390,bh=210; x.save(); x.beginPath(); x.moveTo(bx+40,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-40,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
+  x.fillStyle='#0a0c12'; x.textAlign='center'; x.font='700 40px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+58); x.letterSpacing='0px';
+  x.font='400 150px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+183); x.textAlign='left';
+  // table
+  const rows=res.rows, n=rows.length, cols=n>6?2:1, perCol=Math.ceil(n/cols), top=330, bottom=985;
+  const colW=cols===2?612:940, gap=24, x0=60, hdrH=40, rowGap=7;
+  const rowH=Math.min(100,Math.floor((bottom-top-hdrH-rowGap*(perCol))/perCol));
+  for(let c=0;c<cols;c++){
+    const cx=x0+c*(colW+gap);
+    x.fillStyle='rgba(255,255,255,.55)'; x.font='600 20px "Barlow Condensed"'; x.letterSpacing='1px'; x.textAlign='center';
+    const px={wwcd:cx+colW-322,place:cx+colW-244,elim:cx+colW-162,tot:cx+colW-60};
+    x.fillText('#',cx+36,top+26); x.textAlign='left'; x.fillText('TEAM',cx+92,top+26); x.textAlign='center';
+    x.fillText('WWCD',px.wwcd,top+26); x.fillText('PLACE',px.place,top+26); x.fillText('ELIMS',px.elim,top+26); x.fillText('TOTAL',px.tot,top+26); x.letterSpacing='0px';
+    rows.slice(c*perCol,(c+1)*perCol).forEach((r,i)=>{
+      const y=top+hdrH+i*(rowH+rowGap), q=r.rank<=S.cfg.qualify;
+      x.fillStyle=q?hexA(acc,.16):'rgba(255,255,255,.065)'; x.fillRect(cx,y,colW,rowH);
+      if(q){ x.fillStyle=acc; x.fillRect(cx,y,7,rowH); }
+      const medal=r.rank===1?'#ffd34d':r.rank===2?'#d5dbe6':r.rank===3?'#e0955a':null;
+      x.fillStyle=medal||'rgba(255,255,255,.9)'; x.textAlign='center'; x.font=`400 ${Math.min(46,rowH*.52)}px Anton`; x.textBaseline='middle'; x.fillText(String(r.rank),cx+42,y+rowH/2+2);
+      x.textAlign='left'; x.fillStyle='#fff'; const maxW=px.wwcd-34-(cx+92); const fs=fitText(x,r.team.toUpperCase(),maxW,Math.min(40,rowH*.46),{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+92,y+rowH/2+1);
+      x.textAlign='center'; const sm=Math.min(34,rowH*.38); x.font=`600 ${sm}px "Barlow Condensed"`;
+      x.fillStyle=r.wwcd?acc:'rgba(255,255,255,.55)'; x.fillText(String(r.wwcd||0),px.wwcd,y+rowH/2+2);
+      x.fillStyle='rgba(255,255,255,.88)'; x.fillText(String(r.place),px.place,y+rowH/2+2); x.fillText(String(r.kills),px.elim,y+rowH/2+2);
+      x.fillStyle=acc; x.font=`700 ${Math.min(44,rowH*.5)}px "Barlow Condensed"`; x.fillText(String(r.total),px.tot,y+rowH/2+2);
+    });
+  }
+  // footer
+  x.textAlign='left'; x.textBaseline='alphabetic'; x.fillStyle=acc; x.fillRect(62,1022,18,18);
+  x.fillStyle='rgba(255,255,255,.85)'; x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px';
+  x.fillText(`TOP ${S.cfg.qualify} QUALIFY FOR NEXT ROUND`,94,1038);
+  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.textAlign='right'; x.fillStyle='rgba(255,255,255,.6)'; x.fillText(when,W-60,1038); x.letterSpacing='0px'; x.textAlign='left';
+}
+function canvasBlob(){ return new Promise((res,rej)=>{ try{ $("cv").toBlob(b=>b?res(b):rej(new Error('empty')),'image/png'); }catch(e){ rej(e); } }); }
+
+/* =====================  SETTINGS / WIRING  ===================== */
+function demoRoster(){
+  const names=['Alpha','Bravo','Cobra','Delta','Eagle','Falcon','Ghost','Hydra','Ivory','Jaguar','Kraken','Lynx','Mamba','Nova','Orion','Phoenix'];
+  S.roster=[1,2,3,4,5,6].map(n=>({no:n,date:'22/11/2026',time:['6:20:00 PM','7:00:00 PM','7:40:00 PM'][(n-1)%3]+' 1 Matches',map:'Erangle',
+    teams:names.map((nm,i)=>({slot:i+5,name:`${nm} Esports G${n}`,email:i<12?`${nm.toLowerCase()}${n}@example.com`:''}))}));
+  save(); renderAll(); toast('Demo roster loaded (fake teams)');
+}
+function renderSettings(){ const c=S.cfg; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sPlace').value=c.placement.join(', '); $('sKill').value=c.kill; $('sQual').value=c.qualify; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
+  const lock=!!c.apiUrl; ['sPlace','sKill','sQual','sSlotMin','sSlotMax'].forEach(i=>$(i).disabled=lock);
+  $('sNote').textContent=lock?'Scoring and slot range are controlled from Code.gs while connected.':'Not connected: data lives only in this browser.'; }
+function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='c'?'block':'none';
+  $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join(''); }
+function renderAll(){ $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
+  setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); }
+function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='stand') renderStand(); }
+
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button'); if(!t) return;
+  if(t.dataset.t) return tab(t.dataset.t);
+  if(t.classList.contains('g')) return selectGroup(+t.dataset.g);
+  if(t.dataset.a){ S.cfg.accent=t.dataset.a; save(); renderAll(); return; }
+  if(t.dataset.del){ draft.rows.splice(+t.dataset.del,1); return renderDraft(); }
+});
+$('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; slotStatus(); updatePromptInfo(); });
+$('slots').addEventListener('change',e=>{ const s=e.target.dataset.s; if(!s) return; const c=canon(e.target.value.trim()); e.target.value=c; S.lobby[curG][s]=c; save(); slotStatus(); updatePromptInfo(); });
+$('btnResetSlots').onclick=()=>{ delete S.lobby[curG]; selectGroup(curG); };
+$('btnSaveLobby').onclick=async()=>{ save(); renderGrid(); updatePromptInfo(); if(!S.cfg.apiUrl) return toast('Lobby saved on this device'); try{ await api('saveLobby',{group:curG,slots:lobbyPayload()}); toast('Lobby saved to sheet ✔'); }catch(e){ toast('Sheet error: '+e.message,true); } };
+$('btnCopyPrompt').onclick=async()=>{ try{ await navigator.clipboard.writeText(buildPrompt(curG)); toast('Copied. Paste it in Claude and attach the screenshots'); }catch(e){ $('paste').value=buildPrompt(curG); toast('Clipboard blocked: prompt placed in the box below, copy it from there',true); } };
+$('btnParse').onclick=()=>{ if(!lobbyTeams(curG).length) return toast('Seat the teams first (step 2)',true); const p=parseTable($('paste').value); if(!p.rows.length) return toast(p.issues[0]||'Could not read the table',true); startDraft(p.rows); $('draftCard').scrollIntoView({behavior:'smooth'}); };
+$('btnClearPaste').onclick=()=>{ $('paste').value=''; $('draftCard').style.display='none'; draft=null; };
+$('draftTable').addEventListener('change',e=>{ const i=e.target.dataset.i; if(i==null) return; const f=e.target.dataset.f, r=draft.rows[i];
+  r[f]= f==='slot'? (e.target.value?+e.target.value:'') : (e.target.value===''?NaN:+e.target.value); if(f==='slot') r.notes=[]; renderDraft(); });
+$('btnAddRow').onclick=()=>{ const s=+$('addMissing').value; if(!s) return; const used=draft.rows.map(r=>r.pos); let p=1; while(used.includes(p)) p++; draft.rows.push({pos:p,slot:s,kills:0,notes:[['w','Added manually']]}); renderDraft(); };
+$('btnSaveResult').onclick=saveResult;
+$('standGroup').onchange=e=>{ standG=+e.target.value; renderStand(); };
+$('btnCopyTsv').onclick=async()=>{ await navigator.clipboard.writeText(tsv(S.results[standG].rows)); toast('Copied. Paste into Google Sheets'); };
+$('btnCsv').onclick=()=>{ const csv=tsv(S.results[standG].rows).split('\n').map(l=>l.split('\t').map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`group-${standG}-standings.csv`; a.click(); };
+$('btnEdit').onclick=()=>{ tab('desk'); selectGroup(standG); startDraft(S.results[standG].rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); };
+$('btnToPoster').onclick=()=>tab('poster');
+$('pGroup').onchange=e=>{ standG=+e.target.value; drawPoster(); };
+$('pName').oninput=e=>{ S.cfg.tournament=e.target.value; save(); $('brandName').textContent=S.cfg.tournament; drawPoster(); };
+$('pSub').oninput=e=>{ S.cfg.sub=e.target.value; save(); drawPoster(); };
+$('pImg').onchange=e=>{ S.cfg.img=e.target.value; save(); $('pImgUrl').style.display=e.target.value==='c'?'block':'none'; drawPoster(); };
+$('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoster(); };
+$('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-group-${standG}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
+$('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
+$('btnConnect').onclick=async()=>{ S.cfg.apiUrl=$('sUrl').value.trim(); S.cfg.key=$('sKey').value; save(); setPill(); if(!S.cfg.apiUrl){ renderSettings(); return toast('Disconnected'); }
+  try{ await pull(); }catch(e){ toast('Could not connect: '+e.message,true); } };
+$('btnDemo').onclick=demoRoster;
+$('btnWipe').onclick=()=>{ if(confirm('Delete everything stored in this browser? (The sheet is not touched.)')){ localStorage.removeItem(LS); location.reload(); } };
+['sPlace','sKill','sQual','sSlotMin','sSlotMax'].forEach(id=>$(id).onchange=()=>{ const c=S.cfg;
+  const p=$('sPlace').value.split(/[,\s]+/).map(Number).filter(n=>!isNaN(n)); if(p.length) c.placement=p; c.kill=+$('sKill').value||0; c.qualify=+$('sQual').value||8; c.slotMin=+$('sSlotMin').value||5; c.slotMax=+$('sSlotMax').value||20; save(); toast('Settings saved'); });
+
+renderAll();
+if(S.cfg.apiUrl) pull(true).catch(e=>toast('Sheet offline: using saved copy ('+e.message+')',true));
+</script>
+</body>
+</html>
