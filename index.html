@@ -11,14 +11,16 @@
 :root{
   --bg:#0a0c12; --panel:#121620; --panel2:#171c28; --line:#252c3b; --text:#e9edf5; --mute:#8a93a6;
   --acc:#ffb703; --ok:#2ecc71; --warn:#ffb020; --bad:#ff4d5e;
+  --inp:#0d1018; --line2:#1b2130; --hdr:rgba(10,12,18,.92); --stripe:rgba(255,255,255,.018); --badtxt:#ff8a96;
   --disp:'Anton','Impact',sans-serif; --cond:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 html{color-scheme:dark}
+html[data-theme=light]{color-scheme:light;--bg:#f2f4f9;--panel:#ffffff;--panel2:#eef1f7;--line:#d5dbe7;--text:#161b29;--mute:#5c667c;--inp:#ffffff;--line2:#e4e8f0;--hdr:rgba(255,255,255,.92);--stripe:rgba(0,0,0,.025);--badtxt:#c21f33;--acc:#e69500}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 var(--body);
   background-image:radial-gradient(900px 400px at 85% -10%,color-mix(in srgb,var(--acc) 14%,transparent),transparent),
-  repeating-linear-gradient(115deg,rgba(255,255,255,.018) 0 2px,transparent 2px 14px)}
-header{position:sticky;top:0;z-index:20;background:rgba(10,12,18,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  repeating-linear-gradient(115deg,var(--stripe) 0 2px,transparent 2px 14px)}
+header{position:sticky;top:0;z-index:20;background:var(--hdr);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .bar{max-width:1280px;margin:auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{font:400 26px var(--disp);letter-spacing:.04em;text-transform:uppercase}
 .brand b{color:var(--acc);font-weight:400}
@@ -62,7 +64,7 @@ h3{font:700 18px var(--cond);letter-spacing:.06em;text-transform:uppercase;margi
 #dragGhost{position:fixed;pointer-events:none;z-index:70;background:var(--acc);color:#111;padding:6px 12px;border-radius:8px;font:700 16px var(--cond);letter-spacing:.04em;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translate(-50%,-130%)}
 .slot.bad{border-color:var(--bad)}
 .slot.bad::after{content:"✕";color:var(--bad);font-weight:700}
-input,select,textarea{background:#0d1018;border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font:inherit;width:100%}
+input,select,textarea{background:var(--inp);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font:inherit;width:100%}
 input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--acc) 70%,transparent);border-color:transparent}
 textarea{min-height:150px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
 button.btn{background:var(--acc);color:#111;border:0;border-radius:7px;padding:9px 16px;font:700 16px var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
@@ -80,7 +82,7 @@ button.btn:hover:not(:disabled){filter:brightness(1.1)}
 .tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:6px 8px;border-bottom:1px solid #1b2130;vertical-align:middle}
+td{padding:6px 8px;border-bottom:1px solid var(--line2);vertical-align:middle}
 td.n,th.n{text-align:center}
 td input,td select{padding:5px 8px}
 td input.num{width:64px;text-align:center}
@@ -88,7 +90,7 @@ tr.q td:first-child{box-shadow:inset 5px 0 var(--ok)}
 tr.out td:first-child{box-shadow:inset 5px 0 var(--bad)}
 .st{font:700 12px var(--cond);letter-spacing:.08em;padding:3px 9px;border-radius:99px;display:inline-block}
 .st.q{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
-.st.o{background:color-mix(in srgb,var(--bad) 22%,transparent);color:#ff8a96}
+.st.o{background:color-mix(in srgb,var(--bad) 22%,transparent);color:var(--badtxt)}
 input[type=checkbox]{width:auto;accent-color:var(--acc)}
 input[type=range]{padding:0;accent-color:var(--acc)}
 .bdgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -106,7 +108,11 @@ input[type=range]{padding:0;accent-color:var(--acc)}
 .rk{font:400 20px var(--disp)}
 .flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:760px){.two{grid-template-columns:1fr}nav{margin-left:0;width:100%}.brand{font-size:22px}}
+#themeBtn{background:none;border:1px solid var(--line);color:var(--text);border-radius:99px;padding:4px 12px;font:600 14px var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.pgrid{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
+.card{overflow-x:auto}
+@media(max-width:900px){.pgrid{grid-template-columns:1fr}}
+@media(max-width:760px){.two{grid-template-columns:1fr}.bar{gap:8px;padding:8px 12px}nav{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}nav button{padding:8px 12px;font-size:16px;white-space:nowrap}.brand{font-size:20px}.rounds{width:100%;overflow-x:auto}main{padding:12px 10px 80px}.card{padding:12px}input,select,textarea{font-size:16px}table{font-size:13px}td,th{padding:5px 5px}.btn{min-height:42px}}
 label.f{display:block;font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:10px 0 4px}
 .sw{display:flex;gap:8px}.sw button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
 .sw button.on{border-color:#fff}
@@ -121,6 +127,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <div class="brand"><span id="brandName">A1RG CUP</span> <b>Points Desk</b></div>
   <div class="rounds" id="roundBar"></div>
   <span class="pill off" id="syncPill">Local only</span>
+  <button id="themeBtn" title="Switch light / dark mode">☾ Dark</button>
   <nav id="nav">
     <button data-t="desk" class="on">Match Desk</button>
     <button data-t="stand">Standings</button>
@@ -195,7 +202,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 
 <!-- ================= POSTER ================= -->
 <section id="poster">
-  <div class="two" style="grid-template-columns:320px 1fr;align-items:start">
+  <div class="pgrid">
     <div class="card">
       <h2>Poster</h2>
       <label class="f">Group No.</label><select id="pGroup"></select>
@@ -205,6 +212,8 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <label class="f">Teams qualifying (this group)</label><input id="pQual" type="number" min="1">
       <label class="f">Bottom line</label><input id="pFoot" placeholder="TOP {n} QUALIFY FOR NEXT ROUND">
       <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
+      <label class="f">Bottom-right line</label><input id="pCredit" placeholder="ENIGMA OPERATION LTD.">
+      <label class="f">Logo (top right)</label><select id="pLogo"><option value="auto">Auto (white on dark, black on light)</option><option value="white">Always white</option><option value="black">Always black</option><option value="none">Hide logo</option></select>
       <label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label>
       <label class="f">Accent colour</label>
       <div class="sw" id="pSw"></div>
@@ -258,14 +267,23 @@ const IMG = {
   b:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(9).jfif',
   c:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/8c99c7ace42ad6fad37dbaee3daef75f21832689/use%20this%20assest.png'
 };
+const LOGOS = {
+  white:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/c1ad413c8d61c21e0d6025adde63d34ac25f5c6f/images__12_-removebg-preview.png',
+  black:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/c1ad413c8d61c21e0d6025adde63d34ac25f5c6f/75429b9.png'
+};
 const DEFAULTS = {
   apiUrl:'', key:'', tournament:'A1RG CUP', sub:'OVERALL STANDING',
   placement:[10,6,5,4,3,2,1,1], kill:1, qualify:8, slotMin:5, slotMax:20,
-  accent:'#ffb703', showRound:true, img:'c', imgUrl:'', imgMode:'auto', dim:30, bd:'carbon',
+  accent:'#ffb703', showRound:true, logo:'auto', credit:'ENIGMA OPERATION LTD.', img:'c', imgUrl:'', imgMode:'auto', dim:30, bd:'carbon',
   footer:'TOP {n} QUALIFY FOR NEXT ROUND', statusCol:true
 };
 const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
 
+/* =====================  LIGHT / DARK  ===================== */
+(function(){ let t=null; try{ t=localStorage.getItem('a1rg_theme'); }catch(e){} if(!t) t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  const apply=t=>{ document.documentElement.setAttribute('data-theme',t); const b=document.getElementById('themeBtn'); if(b) b.textContent=t==='light'?'☾ Dark':'☀ Light'; };
+  apply(t); window.addEventListener('DOMContentLoaded',()=>{ apply(t); document.getElementById('themeBtn').onclick=()=>{ t=t==='light'?'dark':'light'; try{localStorage.setItem('a1rg_theme',t)}catch(e){} apply(t); }; });
+})();
 /* =====================  STATE  ===================== */
 const LS = 'a1rg_desk_v1';
 let S;
@@ -571,6 +589,7 @@ async function drawPoster(){
   const g=standG, res=S.results[g], info=grp(g);
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
+  const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
   $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded (is the GitHub repo public? is the link right?). Drawing without it.' : '';
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc);
@@ -585,9 +604,10 @@ async function drawPoster(){
   x.fillStyle=T.txt; x.font=`400 ${ts}px Anton`; x.fillText(name,66,92+ts*.98);
   x.fillStyle=acc; x.fillRect(70,92+ts*.98+16,150,8);
   // group badge
-  const bx=1480,by=44,bw=380,bh=236; x.save(); x.shadowColor='rgba(0,0,0,.35)'; x.shadowBlur=30; x.beginPath(); x.moveTo(bx+44,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-44,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
-  x.fillStyle=ink(acc); x.textAlign='center'; x.font='700 36px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+66); x.letterSpacing='0px';
-  x.font='400 124px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+206); x.textAlign='left';
+  const bx=1480,by=126,bw=380,bh=190; x.save(); x.shadowColor='rgba(0,0,0,.35)'; x.shadowBlur=30; x.beginPath(); x.moveTo(bx+44,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-44,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
+  x.fillStyle=ink(acc); x.textAlign='center'; x.font='700 32px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+54); x.letterSpacing='0px';
+  x.font='400 104px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+168); x.textAlign='left';
+  if(logoImg){ const mw=300, mh=84, k=Math.min(mw/logoImg.width,mh/logoImg.height), lw=logoImg.width*k, lh=logoImg.height*k; x.drawImage(logoImg,W-60-lw,26+(mh-lh)/2,lw,lh); }
   // table
   const rows=res.rows, n=rows.length, cols=n>6?2:1, perCol=Math.ceil(n/cols), top=330, bottom=985;
   const colW=cols===2?676:940, gap=20, x0=48, hdrH=40, rowGap=7;
@@ -617,7 +637,9 @@ async function drawPoster(){
   x.textBaseline='alphabetic'; x.textAlign='left';
   const foot=(S.cfg.footer||'').replace(/\{n\}/g,qn).trim();
   if(foot){ x.fillStyle=sb?'#22c55e':acc; x.fillRect(62,1021,20,20); x.fillStyle=T.txt; x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px'; x.fillText(foot.toUpperCase(),96,1040); }
-  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px'; x.textAlign='right'; x.fillStyle=T.sub; x.fillText(when,W-60,1040); x.letterSpacing='0px'; x.textAlign='left';
+  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.font='600 22px "Barlow Condensed"'; x.letterSpacing='3px'; x.textAlign='right'; x.fillStyle=T.sub; x.fillText(when,W-60,1012);
+  const cr=(S.cfg.credit||'').trim(); if(cr){ x.font='700 28px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),W-60,1046); }
+  x.letterSpacing='0px'; x.textAlign='left';
 }
 function canvasBlob(){ return new Promise((res,rej)=>{ try{ $("cv").toBlob(b=>b?res(b):rej(new Error('empty')),'image/png'); }catch(e){ rej(e); } }); }
 
@@ -636,7 +658,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound;
+function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -731,6 +753,8 @@ $('pMode').onchange=e=>{ S.cfg.imgMode=e.target.value; save(); drawPoster(); };
 $('pDim').oninput=e=>{ S.cfg.dim=+e.target.value; save(); drawPoster(); };
 $('pFoot').oninput=e=>{ S.cfg.footer=e.target.value; save(); drawPoster(); };
 $('pStat').onchange=e=>{ S.cfg.statusCol=e.target.checked; save(); drawPoster(); };
+$('pCredit').oninput=e=>{ S.cfg.credit=e.target.value; save(); drawPoster(); };
+$('pLogo').onchange=e=>{ S.cfg.logo=e.target.value; save(); drawPoster(); };
 $('pRound').onchange=e=>{ S.cfg.showRound=e.target.checked; save(); drawPoster(); };
 $('pQual').oninput=e=>setQualify(standG,e.target.value);
 $('sQualG').oninput=e=>setQualify(standG,e.target.value);
