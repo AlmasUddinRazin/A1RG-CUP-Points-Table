@@ -1,17 +1,25 @@
-# A1RG CUP Points Desk – setup (10 minutes)
- 
-## 1. Google Sheet bridge
-1. Open your tournament Sheet → Extensions → Apps Script. Paste `apps-script/Code.gs`.
-2. Change `ADMIN_KEY` (and scoring/qualify in `CONFIG` if needed). Save.
-3. Deploy → New deployment → Web app → Execute as **Me**, access **Anyone** → copy the `/exec` URL.
-   (Re-deploy as a *new version* after any later edit to Code.gs.)
-The script reads `Groups - Playing` automatically and creates `Lobby-DB`, `Results-DB` and a clean `Group-Overall` tab (one fixed block per group, rebuilt on every save). Your old tabs are not touched.
-## 2. Website (GitHub Pages)
-1. Put `index.html` in a repo → Settings → Pages → deploy from main.
-2. Open the site → Settings tab → paste the `/exec` URL + passcode → Save & load. Do this once per admin device.
-3. Pictures load from `website-assets` via raw.githubusercontent.com – that repo must be public.
-   Tip: rename the files to `bg1.jpg` / `bg2.jpg` (no spaces/brackets) and update the `IMG` constants at the top of `index.html`.
-## 3. Match flow
-Group → seat teams (search) → Copy message for Claude → paste in Claude + screenshots → paste Claude's table back → Check → Save.
-Ranking: total points → chicken dinner → placement pts → kills → best finish.
- 
+# A1RG CUP Points Desk – setup & update guide
+
+## Updating from the previous version
+1. Apps Script: replace ALL of `Code.gs` with the new file (re-set `ADMIN_KEY`). Deploy > Manage deployments > pencil > Version: **New version** > Deploy. The URL does not change.
+2. Run `rebuildNow` once from the editor (function menu > rebuildNow > Run, allow permissions if asked). It builds the formatted tabs from the results you already saved.
+3. GitHub: replace `index.html`, then hard-refresh (Ctrl+F5).
+
+## Tabs in your Google Sheet
+| Tab | For | Notes |
+|---|---|---|
+| Groups - Playing | you | your roster, never touched |
+| **Group-Overall** | humans | one header box per group, groups in order, green = qualified, red = out |
+| **Group-Slots** | humans | one header box per group with the lobby |
+| Results-DB / Lobby-DB / Rules-DB | the website | grey data tabs. Do not edit by hand |
+
+## Match flow
+Group → seat teams (drag or search) → Copy message for Claude → paste into Claude with screenshots → paste Claude's table back → Check → set "Teams qualifying" if different → Save.
+
+## Qualify count & scoring
+- "Teams qualifying" can be changed per group in Match Desk, Standings and Poster. The sheet updates automatically.
+- Settings > Scoring: default for all groups, or custom rules for one group (placement points, kill points, qualify count). Shared with all admins.
+- Ranking: total points → chicken dinner → placement pts → kills → best finish.
+
+## Pictures
+Loaded from `website-assets` via raw.githubusercontent.com (repo must be public). Poster > Picture layout: Auto / Full background / Right-side cutout / Right half.
