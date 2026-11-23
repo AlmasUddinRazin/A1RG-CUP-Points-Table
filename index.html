@@ -84,7 +84,19 @@ td{padding:6px 8px;border-bottom:1px solid #1b2130;vertical-align:middle}
 td.n,th.n{text-align:center}
 td input,td select{padding:5px 8px}
 td input.num{width:64px;text-align:center}
-tr.q td:first-child{box-shadow:inset 4px 0 var(--acc)}
+tr.q td:first-child{box-shadow:inset 5px 0 var(--ok)}
+tr.out td:first-child{box-shadow:inset 5px 0 var(--bad)}
+.st{font:700 12px var(--cond);letter-spacing:.08em;padding:3px 9px;border-radius:99px;display:inline-block}
+.st.q{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
+.st.o{background:color-mix(in srgb,var(--bad) 22%,transparent);color:#ff8a96}
+input[type=checkbox]{width:auto;accent-color:var(--acc)}
+input[type=range]{padding:0;accent-color:var(--acc)}
+.bdgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bdb{background:none;border:2px solid var(--line);border-radius:8px;padding:0;overflow:hidden;cursor:pointer;color:var(--text);text-align:left}
+.bdb.on{border-color:var(--acc)}
+.bdb canvas{display:block;width:100%;height:auto}
+.bdb span{display:block;padding:3px 8px;font:600 13px var(--cond);letter-spacing:.06em;text-transform:uppercase;background:var(--panel2)}
+.inl{display:flex;align-items:center;gap:8px}
 .tot{font:700 20px var(--cond);color:var(--acc)}
 .rk{font:400 20px var(--disp)}
 .flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
@@ -148,6 +160,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 
     <div class="card" id="draftCard" style="display:none">
       <div class="step"><i>5</i><div><h3>Review &amp; save</h3><div class="note">Fix anything highlighted. Points update live.</div></div></div>
+      <div class="row" style="margin-bottom:8px"><label class="inl note" for="dQual">Teams qualifying from this group <input id="dQual" type="number" min="1" style="width:84px"></label><span class="note">(green = qualified, red = out)</span></div>
       <div class="chips" id="draftChips"></div>
       <div class="tw"><table id="draftTable"></table></div>
       <div class="row sp" style="margin-top:12px">
@@ -162,7 +175,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 <section id="stand">
   <div class="card">
     <div class="row sp"><div><h2>Group standings</h2><p class="sub" style="margin:0">Ranked by total points · ties: chicken dinner → placement pts → kills → best finish.</p></div>
-      <select id="standGroup" style="width:auto"></select></div>
+      <div class="row"><label class="inl note" for="sQualG">Teams qualifying <input id="sQualG" type="number" min="1" style="width:84px"></label><select id="standGroup" style="width:auto"></select></div></div>
   </div>
   <div class="card"><div class="tw" id="standBox"></div>
     <div class="row" style="margin-top:12px">
@@ -182,11 +195,20 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <label class="f">Group No.</label><select id="pGroup"></select>
       <label class="f">Tournament name</label><input id="pName">
       <label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING">
+      <label class="f">Teams qualifying (this group)</label><input id="pQual" type="number" min="1">
+      <label class="f">Bottom line</label><input id="pFoot" placeholder="TOP {n} QUALIFY FOR NEXT ROUND">
+      <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
+      <label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label>
       <label class="f">Accent colour</label>
       <div class="sw" id="pSw"></div>
-      <label class="f">Background picture</label>
-      <select id="pImg"><option value="a">Asset 1 (images 10)</option><option value="b">Asset 2 (images 9)</option><option value="c">Custom URL</option><option value="n">None</option></select>
+      <label class="f">Backdrop</label>
+      <div class="bdgrid" id="pBd"></div>
+      <label class="f">Picture</label>
+      <select id="pImg"><option value="c">Asset 3 (new)</option><option value="a">Asset 1 (images 10)</option><option value="b">Asset 2 (images 9)</option><option value="u">Custom URL</option><option value="n">None</option></select>
       <input id="pImgUrl" placeholder="https://…" style="margin-top:8px;display:none">
+      <label class="f">Picture layout</label>
+      <select id="pMode"><option value="auto">Auto</option><option value="full">Full background</option><option value="cutout">Right-side cutout</option><option value="half">Right half (faded)</option></select>
+      <label class="f">Picture dimming</label><input type="range" id="pDim" min="0" max="90">
       <div class="row" style="margin-top:14px"><button class="btn" id="btnDl">Download PNG</button><button class="btn ghost" id="btnCopyImg">Copy image</button></div>
       <p class="note" id="pNote"></p>
     </div>
@@ -205,14 +227,17 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
     <p class="note" id="sNote"></p>
   </div>
   <div class="card">
-    <h2>Scoring</h2>
-    <p class="sub">When connected to the sheet, scoring comes from <code>CONFIG</code> in Code.gs, so every admin uses identical rules.</p>
-    <div class="two">
-      <div><label class="f">Placement points (1st, 2nd, 3rd …; rest = 0)</label><input id="sPlace"></div>
-      <div><label class="f">Points per kill</label><input id="sKill" type="number" min="0" step="0.5"></div>
-      <div><label class="f">Teams qualifying per group</label><input id="sQual" type="number" min="1"></div>
-      <div><label class="f">Slot range</label><div class="row"><input id="sSlotMin" type="number" style="width:90px"><span>to</span><input id="sSlotMax" type="number" style="width:90px"></div></div>
+    <div class="row sp"><div><h2>Scoring &amp; qualification</h2><p class="sub" style="margin:0">Set the default for all groups, or give one group its own rules (e.g. finals). Shared with every admin when the sheet is connected.</p></div>
+      <select id="rGroup" style="width:auto"></select></div>
+    <div class="two" style="margin-top:6px">
+      <div><label class="f">Placement points (1st, 2nd, 3rd …; rest = 0)</label><input id="rPlace"></div>
+      <div><label class="f">Points per kill</label><input id="rKill" type="number" min="0" step="0.5"></div>
+      <div><label class="f">Teams qualifying</label><input id="rQual" type="number" min="1"></div>
+      <div><label class="f">Slot range (from Code.gs when connected)</label><div class="row"><input id="sSlotMin" type="number" style="width:90px"><span>to</span><input id="sSlotMax" type="number" style="width:90px"></div></div>
     </div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="btnSaveRules">Save rules</button><button class="btn ghost" id="btnResetRules">Reset to default</button></div>
+    <p class="note" id="rNote"></p>
+    <p class="note">New rules apply to results you save or re-save from now on. Results already saved keep their points until you open them with <b>Edit this result</b> and save again.</p>
   </div>
 </section>
 </main>
@@ -222,12 +247,14 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 /* =====================  DEFAULTS (edit here once)  ===================== */
 const IMG = {
   a:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(10).jfif',
-  b:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(9).jfif'
+  b:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/5ba653336f0c42a22a22a0f68de71a91de26f0ca/images%20(9).jfif',
+  c:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/8c99c7ace42ad6fad37dbaee3daef75f21832689/use%20this%20assest.png'
 };
 const DEFAULTS = {
   apiUrl:'', key:'', tournament:'A1RG CUP', sub:'OVERALL STANDING',
   placement:[10,6,5,4,3,2,1,1], kill:1, qualify:8, slotMin:5, slotMax:20,
-  accent:'#ffb703', img:'a', imgUrl:''
+  accent:'#ffb703', img:'c', imgUrl:'', imgMode:'auto', dim:30, bd:'carbon',
+  footer:'TOP {n} QUALIFY FOR NEXT ROUND', statusCol:true
 };
 const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
 
@@ -235,7 +262,7 @@ const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
 const LS = 'a1rg_desk_v1';
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)||'null'); } catch(e){ S=null; }
-S = Object.assign({cfg:{}, roster:[], lobby:{}, results:{}}, S||{});
+S = Object.assign({cfg:{}, roster:[], lobby:{}, results:{}, rules:{}}, S||{});
 S.cfg = Object.assign({}, DEFAULTS, S.cfg);
 let curG = null, draft = null, standG = null;
 const $ = id => document.getElementById(id);
@@ -256,7 +283,7 @@ function setPill(){ const p=$('syncPill'); const on=!!S.cfg.apiUrl; p.textConten
 async function pull(quiet){
   const j = await api('all');
   if(j.config) Object.assign(S.cfg, {tournament:j.config.tournament, placement:j.config.placement, kill:j.config.kill, qualify:j.config.qualify, slotMin:j.config.slotMin, slotMax:j.config.slotMax});
-  S.roster = j.roster; S.results = j.results||{};
+  S.roster = j.roster; S.results = j.results||{}; S.rules = j.rules||{};
   Object.keys(j.lobby||{}).forEach(g=>{ S.lobby[g] = {}; j.lobby[g].forEach(t=>S.lobby[g][t.slot]=t.name); });
   save(); renderAll(); if(!quiet) toast('Loaded '+S.roster.length+' groups from sheet');
 }
@@ -264,7 +291,9 @@ async function pull(quiet){
 /* =====================  HELPERS  ===================== */
 const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const grp = n => S.roster.find(g=>g.no===n);
-const pts = pos => S.cfg.placement[pos-1] ?? 0;
+const rulesFor = g => Object.assign({placement:S.cfg.placement,kill:S.cfg.kill,qualify:S.cfg.qualify}, S.rules[0]||{}, S.rules[g]||{});
+const pts = (pos,g) => rulesFor(g).placement[pos-1] ?? 0;
+const qualifyFor = g => (S.results[g] && S.results[g].qualify>0) ? S.results[g].qualify : rulesFor(g).qualify;
 function lev(a,b){ const m=[...Array(a.length+1)].map((_,i)=>[i]); for(let j=1;j<=b.length;j++)m[0][j]=j;
   for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return m[a.length][b.length]; }
 function lobbyTeams(g){ // [{slot,name,email}]
@@ -274,8 +303,9 @@ function lobbyTeams(g){ // [{slot,name,email}]
     out.push({slot,name:t?t.name:name,email:t?.email||''});
   }); return out;
 }
-function rankRows(rows){ // rows have pos,kills -> adds place,total,wwcd,rank
-  rows.forEach(r=>{ r.place=pts(r.pos); r.total=r.place+r.kills*S.cfg.kill; r.wwcd=r.pos===1?1:0; });
+function rankRows(rows,g){ // rows have pos,kills -> adds place,total,wwcd,rank (rules of group g)
+  const K=rulesFor(g).kill;
+  rows.forEach(r=>{ r.place=pts(r.pos,g); r.total=r.place+r.kills*K; r.wwcd=r.pos===1?1:0; });
   [...rows].sort((a,b)=>b.total-a.total||b.wwcd-a.wwcd||b.place-a.place||b.kills-a.kills||a.pos-b.pos).forEach((r,i)=>r.rank=i+1);
   return rows;
 }
@@ -318,11 +348,12 @@ function slotStatus(){
   $('slotChips').innerHTML=c; $('btnSaveLobby').disabled=!!Object.keys(err).length||n<2;
 }
 function canon(v){ const t=grp(curG).teams.find(t=>norm(t.name)===norm(v)); return t?t.name:v; }
+function lobbyPayloadFor(g){ return lobbyTeams(g).map(t=>({slot:t.slot,name:t.name,email:t.email})); }
 function lobbyPayload(){ return lobbyTeams(curG).map(t=>({slot:t.slot,name:t.name,email:t.email})); }
 function updatePromptInfo(){ const n=lobbyTeams(curG).length; $('promptInfo').textContent = n? `${n} teams will be included in the message.`:'Seat teams in step 2 first.'; $('btnCopyPrompt').disabled=!n; }
 
 function buildPrompt(g){
-  const lt=lobbyTeams(g), c=S.cfg, P=c.placement;
+  const lt=lobbyTeams(g), c=S.cfg, R=rulesFor(g), P=R.placement;
   const ptsTxt = P.map((p,i)=>`#${i+1}: ${p}`).join(', ')+`, #${P.length+1} and below: 0`;
   return `You are an expert PUBG Mobile tournament result processor for ${c.tournament}. Extract, calculate and format ONE match (Group ${g}) from screenshots into a sheet-ready table.
 
@@ -339,7 +370,7 @@ HOW TO WORK:
 - Team kills = sum of all its players' eliminations.
 - Finish Position = the team's rank on the end-of-match screen.
 - Placement Point by finish position: ${ptsTxt}.
-- Kill Point = ${c.kill} × kills. Total Point = Placement Point + Kill Point.
+- Kill Point = ${R.kill} × kills. Total Point = Placement Point + Kill Point.
 - Chicken Dinner = 1 for finish position #1, otherwise 0.
 - Never output player names.
 
@@ -395,7 +426,7 @@ function startDraft(rows, fromSaved){
     const {t,notes}=resolveRow(r,lt); if(r.flag) notes.unshift(['w','Claude flagged this row ⚠️']);
     if(r.pos==null) notes.push(['b','Finish position unreadable']); if(r.kills==null) notes.push(['b','Kills unreadable']);
     return {pos:r.pos??0,slot:t?t.slot:'',kills:r.kills??0,notes,claude:r}; });
-  draft={g:curG,rows:d}; renderDraft();
+  draft={g:curG,rows:d,qualify:qualifyFor(curG)}; renderDraft();
 }
 function draftIssues(){
   const lt=lobbyTeams(draft.g), b=[], w=[]; const seenS={},seenP={};
@@ -403,21 +434,21 @@ function draftIssues(){
     else if(seenS[r.slot]) b.push(`Team in slot ${r.slot} appears twice`); seenS[r.slot]=1;
     if(!(r.pos>=1)) b.push(`Row ${i+1}: bad finish position`); else if(seenP[r.pos]) b.push(`Finish position #${r.pos} used twice`); seenP[r.pos]=1;
     if(!(r.kills>=0)||!Number.isInteger(r.kills)) b.push(`Row ${i+1}: bad kills`);
-    if(r.claude){ const calc=pts(r.pos)+r.kills*S.cfg.kill; if(r.claude.cTotal!=null && r.claude.cTotal!==calc) w.push(`Slot ${r.slot||'?'}: Claude total ${r.claude.cTotal} ≠ calculated ${calc} (calculated one is used)`); }
+    if(r.claude){ const calc=pts(r.pos,draft.g)+r.kills*rulesFor(draft.g).kill; if(r.claude.cTotal!=null && r.claude.cTotal!==calc) w.push(`Slot ${r.slot||'?'}: Claude total ${r.claude.cTotal} ≠ calculated ${calc} (calculated one is used)`); }
   });
   const missing=lt.filter(t=>!seenS[t.slot]); if(missing.length) w.push(`${missing.length} seated team(s) missing from result: ${missing.map(m=>m.name).join(', ')}`);
   const ps=draft.rows.map(r=>r.pos).sort((a,b)=>a-b); if(ps.length&&ps.some((p,i)=>p!==i+1)) w.push('Finish positions are not 1…N without gaps');
   return {b,w,missing};
 }
 function renderDraft(){
-  const lt=lobbyTeams(draft.g); rankRows(draft.rows);
+  const lt=lobbyTeams(draft.g); rankRows(draft.rows,draft.g); if(document.activeElement!==$('dQual')) $('dQual').value=draft.qualify;
   const {b,w,missing}=draftIssues();
   $('draftCard').style.display='block';
   let c=`<span class="chip g2">${draft.rows.length} rows</span>`; b.forEach(x=>c+=`<span class="chip b">${esc(x)}</span>`); w.forEach(x=>c+=`<span class="chip w">${esc(x)}</span>`); $('draftChips').innerHTML=c;
   const opt=cur=>`<option value="">— select team —</option>`+lt.map(t=>`<option value="${t.slot}" ${t.slot==cur?'selected':''}>#${t.slot} · ${esc(t.name)}</option>`).join('');
   $('draftTable').innerHTML=`<thead><tr><th class="n">Finish</th><th>Team</th><th class="n">Kills</th><th class="n">Place</th><th class="n">Total</th><th class="n">Rank</th><th></th><th></th></tr></thead><tbody>`+
    [...draft.rows.keys()].sort((a,b)=>(draft.rows[a].pos||99)-(draft.rows[b].pos||99)).map(i=>{ const r=draft.rows[i];
-    return `<tr class="${r.rank<=S.cfg.qualify?'q':''}"><td class="n"><input class="num" type="number" min="1" data-i="${i}" data-f="pos" value="${r.pos}"></td>
+    return `<tr class="${r.rank<=draft.qualify?'q':'out'}"><td class="n"><input class="num" type="number" min="1" data-i="${i}" data-f="pos" value="${r.pos}"></td>
     <td><select data-i="${i}" data-f="slot">${opt(r.slot)}</select>${(r.notes||[]).map(n=>`<div class="flag ${n[0]=='b'?'b':''}">${esc(n[1])}</div>`).join('')}</td>
     <td class="n"><input class="num" type="number" min="0" data-i="${i}" data-f="kills" value="${r.kills}"></td>
     <td class="n">${r.place}</td><td class="n tot">${r.total}</td><td class="n rk">${r.rank}</td><td class="n">${r.wwcd?'🐔':''}</td>
@@ -430,9 +461,9 @@ async function saveResult(){
   const {b,w}=draftIssues(); if(b.length) return;
   if(w.length && !confirm('There are warnings:\n\n• '+w.join('\n• ')+'\n\nSave anyway?')) return;
   const lt=lobbyTeams(draft.g);
-  const rows=rankRows(draft.rows).map(r=>{ const t=lt.find(x=>x.slot==r.slot); return {pos:r.pos,slot:+r.slot,team:t.name,email:t.email,wwcd:r.wwcd,place:r.place,kills:r.kills,total:r.total,rank:r.rank}; }).sort((a,b)=>a.rank-b.rank);
-  S.results[draft.g]={rows,savedAt:new Date().toISOString()}; save(); renderGrid();
-  if(S.cfg.apiUrl){ $('btnSaveResult').disabled=true; try{ await api('saveResult',{group:draft.g,slots:lobbyPayload(),rows}); toast(`Group ${draft.g} saved to sheet ✔`); }catch(e){ toast('Saved on this device only. Sheet error: '+e.message,true); } $('btnSaveResult').disabled=false; }
+  const rows=rankRows(draft.rows,draft.g).map(r=>{ const t=lt.find(x=>x.slot==r.slot); return {pos:r.pos,slot:+r.slot,team:t.name,email:t.email,wwcd:r.wwcd,place:r.place,kills:r.kills,total:r.total,rank:r.rank}; }).sort((a,b)=>a.rank-b.rank);
+  S.results[draft.g]={rows,savedAt:new Date().toISOString(),qualify:draft.qualify}; save(); renderGrid();
+  if(S.cfg.apiUrl){ $('btnSaveResult').disabled=true; try{ await api('saveResult',{group:draft.g,slots:lobbyPayloadFor(draft.g),rows,qualify:draft.qualify}); toast(`Group ${draft.g} saved to sheet ✔`); }catch(e){ toast('Saved on this device only. Sheet error: '+e.message,true); } $('btnSaveResult').disabled=false; }
   else toast(`Group ${draft.g} saved locally (no sheet connected)`);
   standG=draft.g; renderStand();
 }
@@ -442,77 +473,126 @@ function standOptions(){ const done=Object.keys(S.results).map(Number).sort((a,b
   const html=done.map(g=>`<option value="${g}">Group ${g}</option>`).join('')||'<option value="">No results yet</option>';
   $('standGroup').innerHTML=html; if(!done.includes(standG)) standG=done[0]??null; $('standGroup').value=standG??'';
   $('pGroup').innerHTML=html; $('pGroup').value=standG??''; }
-function standTable(rows){ return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th><th class="n">Total</th></tr></thead><tbody>`+
-  rows.map(r=>`<tr class="${r.rank<=S.cfg.qualify?'q':''}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td><td class="n tot">${r.total}</td></tr>`).join('')+`</tbody></table>`; }
+function standTable(rows,g){ const q=qualifyFor(g); return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th><th class="n">Total</th><th class="n">Status</th></tr></thead><tbody>`+
+  rows.map(r=>`<tr class="${r.rank<=q?'q':'out'}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td><td class="n tot">${r.total}</td><td class="n"><span class="st ${r.rank<=q?'q':'o'}">${r.rank<=q?'QUALIFIED':'OUT'}</span></td></tr>`).join('')+`</tbody></table>`; }
+let qTimer;
+function setQualify(g,v){ const n=Math.floor(+v); if(!(n>=1)||!S.results[g]) return; const r=S.results[g]; r.qualify=Math.min(n,99); save(); renderStand(); if(document.querySelector('#poster.on')) drawPoster();
+  clearTimeout(qTimer); qTimer=setTimeout(async()=>{ if(!S.cfg.apiUrl) return; try{ await api('saveResult',{group:g,slots:lobbyPayloadFor(g),rows:r.rows,qualify:r.qualify}); toast(`Group ${g}: top ${r.qualify} qualify · sheet updated ✔`); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } },800); }
 function renderStand(){
   standOptions(); const r=S.results[standG];
-  $('standBox').innerHTML = r? standTable(r.rows) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
-  ['btnCopyTsv','btnCsv','btnEdit','btnToPoster'].forEach(i=>$(i).disabled=!r);
-  const q=Object.keys(S.results).map(Number).sort((a,b)=>a-b).map(g=>`<div style="margin-bottom:10px"><b style="font-family:var(--cond);letter-spacing:.06em">GROUP ${g}</b><div class="chips">${S.results[g].rows.filter(x=>x.rank<=S.cfg.qualify).map(x=>`<span class="chip">${x.rank}. ${esc(x.team)}</span>`).join('')}</div></div>`).join('');
+  $('standBox').innerHTML = r? standTable(r.rows,standG) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
+  ['btnCopyTsv','btnCsv','btnEdit','btnToPoster','sQualG','pQual'].forEach(i=>$(i).disabled=!r);
+  ['sQualG','pQual'].forEach(i=>{ if(document.activeElement!==$(i)) $(i).value=r?qualifyFor(standG):''; });
+  const q=Object.keys(S.results).map(Number).sort((a,b)=>a-b).map(g=>`<div style="margin-bottom:10px"><b style="font-family:var(--cond);letter-spacing:.06em">GROUP ${g} · TOP ${qualifyFor(g)}</b><div class="chips">${S.results[g].rows.filter(x=>x.rank<=qualifyFor(g)).map(x=>`<span class="chip">${x.rank}. ${esc(x.team)}</span>`).join('')}</div></div>`).join('');
   $('qualBox').innerHTML=q||'<div class="note">Nothing yet.</div>';
 }
 const tsv = rows => ['Overall Match Rank','Team Name','Chicken Dinner','Placement Point','Kill Point','Total Point','Team Email'].join('\t')+'\n'+rows.map(r=>[r.rank,r.team,r.wwcd||'',r.place,r.kills,r.total,r.email].join('\t')).join('\n');
 
-/* =====================  POSTER  ===================== */
+/* =====================  POSTER v2  ===================== */
+const BACKDROPS=[
+ {id:'carbon',  name:'Carbon',     mode:'dark', c1:'#0d1119', c2:'#05060a', pat:'diag', glow:'acc'},
+ {id:'midnight',name:'Midnight',   mode:'dark', c1:'#10204a', c2:'#050a1a', pat:'grid', glow:'#3b82f6'},
+ {id:'crimson', name:'Crimson',    mode:'dark', c1:'#2e0b14', c2:'#0a0306', pat:'diag', glow:'#ef4444'},
+ {id:'cyber',   name:'Cyber',      mode:'dark', c1:'#0b1026', c2:'#14061f', pat:'grid', glow:'#22d3ee', glow2:'#e879f9'},
+ {id:'emerald', name:'Emerald',    mode:'dark', c1:'#07261d', c2:'#020b09', pat:'hex',  glow:'#10b981'},
+ {id:'royal',   name:'Royal',      mode:'dark', c1:'#1d1240', c2:'#080519', pat:'rays', glow:'#8b5cf6'},
+ {id:'gold',    name:'Black Gold', mode:'dark', c1:'#211806', c2:'#070502', pat:'hex',  glow:'#f59e0b'},
+ {id:'snow',    name:'Snow',       mode:'light',c1:'#ffffff', c2:'#e4e9f2', pat:'diag', glow:'acc'},
+ {id:'sand',    name:'Sand',       mode:'light',c1:'#f7f0e3', c2:'#e0d3b8', pat:'rays', glow:'acc'},
+ {id:'steel',   name:'Steel',      mode:'light',c1:'#eaeef4', c2:'#bfc8d6', pat:'grid', glow:'acc'},
+];
 const imgCache={};
 function loadImg(url){ return new Promise(res=>{ if(!url) return res(null); if(imgCache[url]!==undefined) return res(imgCache[url]);
   const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(imgCache[url]=i); i.onerror=()=>res(imgCache[url]=null); i.src=url; }); }
-function posterImgUrl(){ const c=S.cfg; return c.img==='n'?'':c.img==='c'?c.imgUrl:IMG[c.img]; }
+function posterImgUrl(){ const c=S.cfg; return c.img==='n'?'':c.img==='u'?c.imgUrl:IMG[c.img]; }
 const hexA=(h,a)=>{ const n=parseInt(h.slice(1),16); return `rgba(${n>>16},${n>>8&255},${n&255},${a})`; };
+const lum=h=>{ const n=parseInt(h.slice(1),16), f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}; return .2126*f(n>>16)+.7152*f(n>>8&255)+.0722*f(n&255); };
+const ink=h=>lum(h)>.4?'#0b0e15':'#ffffff';
+const shade=(h,f)=>{ const n=parseInt(h.slice(1),16), m=v=>Math.round(v*(1-f)); return `rgb(${m(n>>16)},${m(n>>8&255)},${m(n&255)})`; };
 function fitText(x,txt,maxW,size,font){ let s=size; do{ x.font=`${font.w} ${s}px ${font.f}`; if(x.measureText(txt).width<=maxW||s<=12) break; s-=1; }while(true); return s; }
+function rrPath(x,px,py,w,h,r){ r=Math.min(r,h/2,w/2); x.beginPath(); x.moveTo(px+r,py); x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r); x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath(); }
+
+function drawBackdrop(x,W,H,bd,acc){
+  const dark=bd.mode==='dark', glow=bd.glow==='acc'?acc:bd.glow, glow2=bd.glow2||glow;
+  let g=x.createLinearGradient(0,0,W,H); g.addColorStop(0,bd.c1); g.addColorStop(1,bd.c2); x.fillStyle=g; x.fillRect(0,0,W,H);
+  let r=x.createRadialGradient(W*.1,0,0,W*.1,0,W*.62); r.addColorStop(0,hexA(glow,dark?.36:.30)); r.addColorStop(1,hexA(glow,0)); x.fillStyle=r; x.fillRect(0,0,W,H);
+  r=x.createRadialGradient(W*.96,H,0,W*.96,H,W*.5); r.addColorStop(0,hexA(glow2,dark?.24:.18)); r.addColorStop(1,hexA(glow2,0)); x.fillStyle=r; x.fillRect(0,0,W,H);
+  x.save(); x.lineWidth=2; const line=dark?'rgba(255,255,255,.04)':'rgba(10,14,30,.055)'; x.strokeStyle=line; x.fillStyle=line;
+  if(bd.pat==='diag'){ for(let i=-H;i<W;i+=26){ x.beginPath(); x.moveTo(i,H); x.lineTo(i+H,0); x.stroke(); } }
+  else if(bd.pat==='grid'){ for(let i=0;i<W;i+=64){ x.beginPath(); x.moveTo(i,0); x.lineTo(i,H); x.stroke(); } for(let j=0;j<H;j+=64){ x.beginPath(); x.moveTo(0,j); x.lineTo(W,j); x.stroke(); } }
+  else if(bd.pat==='hex'){ const R=46,w=Math.sqrt(3)*R; for(let j=-1;j*1.5*R<H+R;j++) for(let i=-1;i*w<W+w;i++){ const cx=i*w+(j%2?w/2:0), cy=j*1.5*R; x.beginPath(); for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3; x[k?'lineTo':'moveTo'](cx+R*Math.cos(a),cy+R*Math.sin(a)); } x.closePath(); x.stroke(); } }
+  else if(bd.pat==='rays'){ const n=26, d=(Math.PI/2)/n; for(let i=0;i<n;i+=1){ const a=Math.PI/2+i*d; x.beginPath(); x.moveTo(W,0); x.lineTo(W+Math.cos(a)*3200,Math.sin(a)*3200); x.lineTo(W+Math.cos(a+d/2)*3200,Math.sin(a+d/2)*3200); x.closePath(); x.fill(); } }
+  x.restore();
+  if(dark){ r=x.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,W*.75); r.addColorStop(0,'rgba(0,0,0,0)'); r.addColorStop(1,'rgba(0,0,0,.5)'); x.fillStyle=r; x.fillRect(0,0,W,H); }
+}
+function drawPicture(x,W,H,img,bd,dark){
+  const m0=S.cfg.imgMode, ar=img.width/img.height, png=/\.png(\?|$)/i.test(posterImgUrl());
+  const mode=m0!=='auto'?m0:(ar>=1.4?'full':(png?'cutout':'half')), dim=(S.cfg.dim??30)/100;
+  const veil=(a)=>dark?hexA(bd.c2,a):`rgba(255,255,255,${a})`;
+  if(mode==='full'){ const r=Math.max(W/img.width,H/img.height), w=img.width*r, h=img.height*r; x.drawImage(img,(W-w)/2,(H-h)/2,w,h); x.fillStyle=veil(dim); x.fillRect(0,0,W,H); }
+  else if(mode==='cutout'){ let h=H*.97, w=img.width*(h/img.height); if(w>W*.55){ w=W*.55; h=img.height*(w/img.width); }
+    x.save(); x.shadowColor='rgba(0,0,0,.5)'; x.shadowBlur=50; x.drawImage(img,W-w-6,H-h-6,w,h); x.restore(); }
+  else { const r=Math.max((W*.5)/img.width,H/img.height), w=img.width*r, h=img.height*r; x.save(); x.beginPath(); x.rect(W*.5,0,W*.5,H); x.clip();
+    x.drawImage(img,W-w+(w-W*.5)*.25,(H-h)/2,w,h); x.fillStyle=veil(dim*.6); x.fillRect(W*.5,0,W*.5,H); x.restore();
+    const gr=x.createLinearGradient(W*.42,0,W*.8,0); gr.addColorStop(0,bd.c1); gr.addColorStop(1,hexA(bd.c1,0)); x.fillStyle=gr; x.fillRect(W*.42,0,W*.4,H); }
+}
 let drawing=0;
 async function drawPoster(){
   const my=++drawing, cv=$("cv"), x=cv.getContext('2d'), W=1920, H=1080, acc=S.cfg.accent;
-  const g=standG, res=S.results[g]; const info=grp(g);
+  const bd=BACKDROPS.find(b=>b.id===S.cfg.bd)||BACKDROPS[0], dark=bd.mode==='dark';
+  const T={txt:dark?'#ffffff':'#0e1220', sub:dark?'rgba(255,255,255,.80)':'rgba(14,18,32,.74)',
+    panel:dark?'rgba(255,255,255,.09)':'rgba(255,255,255,.80)', panelQ:dark?'rgba(255,255,255,.16)':'rgba(255,255,255,.97)',
+    chip:dark?'rgba(255,255,255,.16)':'rgba(14,18,32,.11)', accTxt:dark?acc:shade(acc,.40), edge:dark?'rgba(255,255,255,.07)':'rgba(14,18,32,.10)'};
+  const g=standG, res=S.results[g], info=grp(g);
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
-  $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded (check the URL / that the repo is public). Drawing without it.' : '';
-  // background
-  x.fillStyle='#090b10'; x.fillRect(0,0,W,H);
-  if(img){ const r=Math.max((W*.5)/img.width,H/img.height), w=img.width*r, h=img.height*r; x.save(); x.beginPath(); x.rect(W*.5,0,W*.5,H); x.clip(); x.drawImage(img,W-w+(w-W*.5)*.25,(H-h)/2,w,h); x.restore();
-    let gr=x.createLinearGradient(W*.42,0,W*.82,0); gr.addColorStop(0,'#090b10'); gr.addColorStop(1,'rgba(9,11,16,.25)'); x.fillStyle=gr; x.fillRect(W*.42,0,W*.58,H); }
-  let rg=x.createRadialGradient(240,0,0,240,0,900); rg.addColorStop(0,hexA(acc,.32)); rg.addColorStop(1,hexA(acc,0)); x.fillStyle=rg; x.fillRect(0,0,W,H);
-  x.save(); x.strokeStyle='rgba(255,255,255,.03)'; x.lineWidth=2; for(let i=-H;i<W;i+=26){ x.beginPath(); x.moveTo(i,H); x.lineTo(i+H,0); x.stroke(); } x.restore();
-  // top + bottom accent rails
+  $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded (is the GitHub repo public? is the link right?). Drawing without it.' : '';
+  x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
+  drawBackdrop(x,W,H,bd,acc);
+  if(img) drawPicture(x,W,H,img,bd,dark);
+  if(dark){ const sc=x.createLinearGradient(0,0,W*.72,0); sc.addColorStop(0,'rgba(0,0,0,.38)'); sc.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=sc; x.fillRect(0,0,W,H); }
   x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
-  if(!res){ x.fillStyle='#8a93a6'; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
-  // title
-  x.textBaseline='alphabetic'; x.letterSpacing='8px'; x.fillStyle=acc; x.font='700 34px "Barlow Condensed"'; x.fillText((S.cfg.sub||'OVERALL STANDING').toUpperCase(),70,92); x.letterSpacing='0px';
-  const name=(S.cfg.tournament||'TOURNAMENT').toUpperCase(); const ts=fitText(x,name,1180,128,{w:'400',f:'Anton'});
-  x.fillStyle='#fff'; x.font=`400 ${ts}px Anton`; x.fillText(name,66,92+ts*.98);
+  if(!res){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
+  const qn=qualifyFor(g), sb=S.cfg.statusCol;
+  // title block
+  x.letterSpacing='8px'; x.fillStyle=T.accTxt; x.font='700 34px "Barlow Condensed"'; x.fillText((S.cfg.sub||'').toUpperCase(),70,92); x.letterSpacing='0px';
+  const name=(S.cfg.tournament||'TOURNAMENT').toUpperCase(), ts=fitText(x,name,1180,128,{w:'400',f:'Anton'});
+  x.fillStyle=T.txt; x.font=`400 ${ts}px Anton`; x.fillText(name,66,92+ts*.98);
   x.fillStyle=acc; x.fillRect(70,92+ts*.98+16,150,8);
   // group badge
-  const bx=1470,by=48,bw=390,bh=210; x.save(); x.beginPath(); x.moveTo(bx+40,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-40,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
-  x.fillStyle='#0a0c12'; x.textAlign='center'; x.font='700 40px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+58); x.letterSpacing='0px';
-  x.font='400 150px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+183); x.textAlign='left';
+  const bx=1480,by=44,bw=380,bh=236; x.save(); x.shadowColor='rgba(0,0,0,.35)'; x.shadowBlur=30; x.beginPath(); x.moveTo(bx+44,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-44,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
+  x.fillStyle=ink(acc); x.textAlign='center'; x.font='700 36px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+66); x.letterSpacing='0px';
+  x.font='400 124px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+206); x.textAlign='left';
   // table
   const rows=res.rows, n=rows.length, cols=n>6?2:1, perCol=Math.ceil(n/cols), top=330, bottom=985;
-  const colW=cols===2?612:940, gap=24, x0=60, hdrH=40, rowGap=7;
-  const rowH=Math.min(100,Math.floor((bottom-top-hdrH-rowGap*(perCol))/perCol));
+  const colW=cols===2?676:940, gap=20, x0=48, hdrH=40, rowGap=7;
+  const rowH=Math.min(100,Math.floor((bottom-top-hdrH-rowGap*perCol)/perCol));
   for(let c=0;c<cols;c++){
-    const cx=x0+c*(colW+gap);
-    x.fillStyle='rgba(255,255,255,.55)'; x.font='600 20px "Barlow Condensed"'; x.letterSpacing='1px'; x.textAlign='center';
-    const px={wwcd:cx+colW-322,place:cx+colW-244,elim:cx+colW-162,tot:cx+colW-60};
-    x.fillText('#',cx+36,top+26); x.textAlign='left'; x.fillText('TEAM',cx+92,top+26); x.textAlign='center';
+    const cx=x0+c*(colW+gap), px={wwcd:cx+colW-292,place:cx+colW-228,elim:cx+colW-165,tot:cx+colW-62};
+    x.fillStyle=T.sub; x.font='600 18px "Barlow Condensed"'; x.letterSpacing='1px'; x.textAlign='center'; x.textBaseline='alphabetic';
+    x.fillText('#',cx+40,top+26); x.textAlign='left'; x.fillText('TEAM',cx+92,top+26); x.textAlign='center';
     x.fillText('WWCD',px.wwcd,top+26); x.fillText('PLACE',px.place,top+26); x.fillText('ELIMS',px.elim,top+26); x.fillText('TOTAL',px.tot,top+26); x.letterSpacing='0px';
     rows.slice(c*perCol,(c+1)*perCol).forEach((r,i)=>{
-      const y=top+hdrH+i*(rowH+rowGap), q=r.rank<=S.cfg.qualify;
-      x.fillStyle=q?hexA(acc,.16):'rgba(255,255,255,.065)'; x.fillRect(cx,y,colW,rowH);
-      if(q){ x.fillStyle=acc; x.fillRect(cx,y,7,rowH); }
-      const medal=r.rank===1?'#ffd34d':r.rank===2?'#d5dbe6':r.rank===3?'#e0955a':null;
-      x.fillStyle=medal||'rgba(255,255,255,.9)'; x.textAlign='center'; x.font=`400 ${Math.min(46,rowH*.52)}px Anton`; x.textBaseline='middle'; x.fillText(String(r.rank),cx+42,y+rowH/2+2);
-      x.textAlign='left'; x.fillStyle='#fff'; const maxW=px.wwcd-34-(cx+92); const fs=fitText(x,r.team.toUpperCase(),maxW,Math.min(40,rowH*.46),{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+92,y+rowH/2+1);
-      x.textAlign='center'; const sm=Math.min(34,rowH*.38); x.font=`600 ${sm}px "Barlow Condensed"`;
-      x.fillStyle=r.wwcd?acc:'rgba(255,255,255,.55)'; x.fillText(String(r.wwcd||0),px.wwcd,y+rowH/2+2);
-      x.fillStyle='rgba(255,255,255,.88)'; x.fillText(String(r.place),px.place,y+rowH/2+2); x.fillText(String(r.kills),px.elim,y+rowH/2+2);
-      x.fillStyle=acc; x.font=`700 ${Math.min(44,rowH*.5)}px "Barlow Condensed"`; x.fillText(String(r.total),px.tot,y+rowH/2+2);
+      const y=top+hdrH+i*(rowH+rowGap), q=r.rank<=qn, cyy=y+rowH/2;
+      x.save(); rrPath(x,cx,y,colW,rowH,10); x.fillStyle=q?T.panelQ:T.panel; x.fill(); x.lineWidth=1.5; x.strokeStyle=T.edge; x.stroke(); x.clip();
+      const bar=sb?(q?'#22c55e':'#ef4444'):(q?acc:null); if(bar){ x.fillStyle=bar; x.fillRect(cx,y,9,rowH); } x.restore();
+      x.textBaseline='middle'; x.textAlign='center';
+      const medal=dark?['#ffd34d','#dfe5ef','#e8a066']:['#b07d00','#5b6475','#a2591f'];
+      x.fillStyle=r.rank<=3?medal[r.rank-1]:T.txt; x.font=`400 ${Math.min(46,rowH*.52)}px Anton`; x.fillText(String(r.rank),cx+42,cyy+2);
+      x.textAlign='left'; x.fillStyle=T.txt; const fs=fitText(x,r.team.toUpperCase(),px.wwcd-30-(cx+92),Math.min(40,rowH*.46),{w:'700',f:'"Barlow Condensed"'});
+      x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+92,cyy+1);
+      x.textAlign='center'; x.font=`600 ${Math.min(34,rowH*.38)}px "Barlow Condensed"`;
+      x.fillStyle=r.wwcd?T.accTxt:T.sub; x.fillText(String(r.wwcd||0),px.wwcd,cyy+2);
+      x.fillStyle=T.txt; x.fillText(String(r.place),px.place,cyy+2); x.fillText(String(r.kills),px.elim,cyy+2);
+      const pw=94, ph=Math.round(rowH*.7); rrPath(x,px.tot-pw/2,cyy-ph/2,pw,ph,9); x.fillStyle=q?acc:T.chip; x.fill();
+      x.fillStyle=q?ink(acc):T.txt; x.font=`700 ${Math.min(46,ph*.74)}px "Barlow Condensed"`; x.fillText(String(r.total),px.tot,cyy+2);
     });
   }
   // footer
-  x.textAlign='left'; x.textBaseline='alphabetic'; x.fillStyle=acc; x.fillRect(62,1022,18,18);
-  x.fillStyle='rgba(255,255,255,.85)'; x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px';
-  x.fillText(`TOP ${S.cfg.qualify} QUALIFY FOR NEXT ROUND`,94,1038);
-  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.textAlign='right'; x.fillStyle='rgba(255,255,255,.6)'; x.fillText(when,W-60,1038); x.letterSpacing='0px'; x.textAlign='left';
+  x.textBaseline='alphabetic'; x.textAlign='left';
+  const foot=(S.cfg.footer||'').replace(/\{n\}/g,qn).trim();
+  if(foot){ x.fillStyle=sb?'#22c55e':acc; x.fillRect(62,1021,20,20); x.fillStyle=T.txt; x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px'; x.fillText(foot.toUpperCase(),96,1040); }
+  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px'; x.textAlign='right'; x.fillStyle=T.sub; x.fillText(when,W-60,1040); x.letterSpacing='0px'; x.textAlign='left';
 }
 function canvasBlob(){ return new Promise((res,rej)=>{ try{ $("cv").toBlob(b=>b?res(b):rej(new Error('empty')),'image/png'); }catch(e){ rej(e); } }); }
 
@@ -523,11 +603,19 @@ function demoRoster(){
     teams:names.map((nm,i)=>({slot:i+5,name:`${nm} Esports G${n}`,email:i<12?`${nm.toLowerCase()}${n}@example.com`:''}))}));
   save(); renderAll(); toast('Demo roster loaded (fake teams)');
 }
-function renderSettings(){ const c=S.cfg; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sPlace').value=c.placement.join(', '); $('sKill').value=c.kill; $('sQual').value=c.qualify; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
-  const lock=!!c.apiUrl; ['sPlace','sKill','sQual','sSlotMin','sSlotMax'].forEach(i=>$(i).disabled=lock);
-  $('sNote').textContent=lock?'Scoring and slot range are controlled from Code.gs while connected.':'Not connected: data lives only in this browser.'; }
-function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='c'?'block':'none';
-  $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join(''); }
+function renderSettings(){ const c=S.cfg; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
+  ['sSlotMin','sSlotMax'].forEach(i=>$(i).disabled=!!c.apiUrl);
+  $('sNote').textContent=c.apiUrl?'Connected. Slot range comes from Code.gs; scoring rules below are saved to the sheet.':'Not connected: data lives only in this browser.'; renderRules(); }
+function curRuleG(){ return +$('rGroup').value||0; }
+function renderRules(){ const sel=$('rGroup').value||'0';
+  $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
+function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
+  $('rNote').textContent=g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'These rules apply to every group that has no rules of its own.'; }
+function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol;
+  $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
+  $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
+  $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
+  document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); }
 function renderAll(){ $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
   setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); }
 function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='stand') renderStand(); }
@@ -537,6 +625,7 @@ document.addEventListener('click',async e=>{
   if(t.dataset.t) return tab(t.dataset.t);
   if(t.classList.contains('g')) return selectGroup(+t.dataset.g);
   if(t.dataset.a){ S.cfg.accent=t.dataset.a; save(); renderAll(); return; }
+  if(t.dataset.bd){ S.cfg.bd=t.dataset.bd; save(); renderPosterForm(); drawPoster(); return; }
   if(t.dataset.del){ draft.rows.splice(+t.dataset.del,1); return renderDraft(); }
 });
 $('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; slotStatus(); updatePromptInfo(); });
@@ -586,7 +675,14 @@ $('btnToPoster').onclick=()=>tab('poster');
 $('pGroup').onchange=e=>{ standG=+e.target.value; drawPoster(); };
 $('pName').oninput=e=>{ S.cfg.tournament=e.target.value; save(); $('brandName').textContent=S.cfg.tournament; drawPoster(); };
 $('pSub').oninput=e=>{ S.cfg.sub=e.target.value; save(); drawPoster(); };
-$('pImg').onchange=e=>{ S.cfg.img=e.target.value; save(); $('pImgUrl').style.display=e.target.value==='c'?'block':'none'; drawPoster(); };
+$('pImg').onchange=e=>{ S.cfg.img=e.target.value; save(); $('pImgUrl').style.display=e.target.value==='u'?'block':'none'; drawPoster(); };
+$('pMode').onchange=e=>{ S.cfg.imgMode=e.target.value; save(); drawPoster(); };
+$('pDim').oninput=e=>{ S.cfg.dim=+e.target.value; save(); drawPoster(); };
+$('pFoot').oninput=e=>{ S.cfg.footer=e.target.value; save(); drawPoster(); };
+$('pStat').onchange=e=>{ S.cfg.statusCol=e.target.checked; save(); drawPoster(); };
+$('pQual').oninput=e=>setQualify(standG,e.target.value);
+$('sQualG').oninput=e=>setQualify(standG,e.target.value);
+$('dQual').oninput=e=>{ const n=Math.floor(+e.target.value); if(draft&&n>=1){ draft.qualify=Math.min(n,99); renderDraft(); } };
 $('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoster(); };
 $('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-group-${standG}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
 $('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
@@ -594,8 +690,15 @@ $('btnConnect').onclick=async()=>{ S.cfg.apiUrl=$('sUrl').value.trim(); S.cfg.ke
   try{ await pull(); }catch(e){ toast('Could not connect: '+e.message,true); } };
 $('btnDemo').onclick=demoRoster;
 $('btnWipe').onclick=()=>{ if(confirm('Delete everything stored in this browser? (The sheet is not touched.)')){ localStorage.removeItem(LS); location.reload(); } };
-['sPlace','sKill','sQual','sSlotMin','sSlotMax'].forEach(id=>$(id).onchange=()=>{ const c=S.cfg;
-  const p=$('sPlace').value.split(/[,\s]+/).map(Number).filter(n=>!isNaN(n)); if(p.length) c.placement=p; c.kill=+$('sKill').value||0; c.qualify=+$('sQual').value||8; c.slotMin=+$('sSlotMin').value||5; c.slotMax=+$('sSlotMax').value||20; save(); toast('Settings saved'); });
+['sSlotMin','sSlotMax'].forEach(id=>$(id).onchange=()=>{ const c=S.cfg; c.slotMin=+$('sSlotMin').value||5; c.slotMax=+$('sSlotMax').value||20; save(); toast('Settings saved'); });
+$('rGroup').onchange=fillRules;
+$('btnSaveRules').onclick=async()=>{ const g=curRuleG(); const p=$('rPlace').value.split(/[,\s]+/).filter(Boolean).map(Number); const kill=+$('rKill').value, qual=Math.max(1,Math.floor(+$('rQual').value)||8);
+  if(!p.length||p.some(isNaN)) return toast('Placement points must be numbers, like 10, 6, 5, 4',true); if(isNaN(kill)||kill<0) return toast('Kill points must be 0 or more',true);
+  S.rules[g]={placement:p,kill,qualify:qual}; save(); renderRules();
+  if(!S.cfg.apiUrl) return toast('Rules saved on this device');
+  try{ await api('saveRules',{group:g,placement:p,kill,qualify:qual}); toast(g?`Group ${g} rules saved to sheet ✔`:'Default rules saved to sheet ✔'); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } };
+$('btnResetRules').onclick=async()=>{ const g=curRuleG(); delete S.rules[g]; save(); renderRules();
+  if(!S.cfg.apiUrl) return toast('Reset'); try{ await api('deleteRules',{group:g}); toast('Reset to default ✔'); }catch(e){ toast('Reset here only. Sheet error: '+e.message,true); } };
 
 renderAll();
 if(S.cfg.apiUrl) pull(true).catch(e=>toast('Sheet offline: using saved copy ('+e.message+')',true));
