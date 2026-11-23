@@ -97,6 +97,11 @@ input[type=range]{padding:0;accent-color:var(--acc)}
 .bdb canvas{display:block;width:100%;height:auto}
 .bdb span{display:block;padding:3px 8px;font:600 13px var(--cond);letter-spacing:.06em;text-transform:uppercase;background:var(--panel2)}
 .inl{display:flex;align-items:center;gap:8px}
+.rounds{display:flex;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px}
+.rounds button{background:none;border:0;color:var(--mute);font:700 17px var(--cond);letter-spacing:.08em;text-transform:uppercase;padding:4px 16px;border-radius:9px;cursor:pointer;line-height:1.1;text-align:center}
+.rounds button small{display:block;font:600 11px var(--cond);letter-spacing:.06em;opacity:.85}
+.rounds button.on{background:var(--acc);color:#111}
+.rounds button:not(.on):hover{color:var(--text)}
 .tot{font:700 20px var(--cond);color:var(--acc)}
 .rk{font:400 20px var(--disp)}
 .flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
@@ -114,6 +119,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 <body>
 <header><div class="bar">
   <div class="brand"><span id="brandName">A1RG CUP</span> <b>Points Desk</b></div>
+  <div class="rounds" id="roundBar"></div>
   <span class="pill off" id="syncPill">Local only</span>
   <nav id="nav">
     <button data-t="desk" class="on">Match Desk</button>
@@ -195,6 +201,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <label class="f">Group No.</label><select id="pGroup"></select>
       <label class="f">Tournament name</label><input id="pName">
       <label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING">
+      <label class="f inl"><input type="checkbox" id="pRound"> Show round name in sub-title</label>
       <label class="f">Teams qualifying (this group)</label><input id="pQual" type="number" min="1">
       <label class="f">Bottom line</label><input id="pFoot" placeholder="TOP {n} QUALIFY FOR NEXT ROUND">
       <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
@@ -226,6 +233,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
     <div class="row" style="margin-top:12px"><button class="btn" id="btnConnect">Save &amp; load from sheet</button><button class="btn ghost" id="btnDemo">Load demo roster</button><button class="btn ghost" id="btnWipe">Wipe local data</button></div>
     <p class="note" id="sNote"></p>
   </div>
+  <div class="card" id="checkCard" style="display:none"></div>
   <div class="card">
     <div class="row sp"><div><h2>Scoring &amp; qualification</h2><p class="sub" style="margin:0">Set the default for all groups, or give one group its own rules (e.g. finals). Shared with every admin when the sheet is connected.</p></div>
       <select id="rGroup" style="width:auto"></select></div>
@@ -253,7 +261,7 @@ const IMG = {
 const DEFAULTS = {
   apiUrl:'', key:'', tournament:'A1RG CUP', sub:'OVERALL STANDING',
   placement:[10,6,5,4,3,2,1,1], kill:1, qualify:8, slotMin:5, slotMax:20,
-  accent:'#ffb703', img:'c', imgUrl:'', imgMode:'auto', dim:30, bd:'carbon',
+  accent:'#ffb703', showRound:true, img:'c', imgUrl:'', imgMode:'auto', dim:30, bd:'carbon',
   footer:'TOP {n} QUALIFY FOR NEXT ROUND', statusCol:true
 };
 const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
@@ -262,11 +270,20 @@ const ACCENTS = ['#ffb703','#ff4d5e','#22d3ee','#a78bfa','#34d399','#f472b6'];
 const LS = 'a1rg_desk_v1';
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)||'null'); } catch(e){ S=null; }
-S = Object.assign({cfg:{}, roster:[], lobby:{}, results:{}, rules:{}}, S||{});
+/* Per-round data: S.rd[round] = {roster,lobby,results,rules}. S.roster/lobby/results/rules always point at the CURRENT round. */
+const DEFAULT_ROUNDS=[{id:1,name:'Round 1',prefillNeedsEmail:true},{id:2,name:'Round 2',prefillNeedsEmail:false}];
+if(S && !S.rd){ S.rd={1:{roster:S.roster||[],lobby:S.lobby||{},results:S.results||{},rules:S.rules||{}}}; S.round=1; }   // upgrade from the single-round version
+S = Object.assign({cfg:{}, round:1, rounds:DEFAULT_ROUNDS, rd:{}, reports:{}, errors:{}}, S||{});
 S.cfg = Object.assign({}, DEFAULTS, S.cfg);
+const bundle = r => S.rd[r] || (S.rd[r]={roster:[],lobby:{},results:{},rules:{}});
+function bind(r){ S.round=r; const b=bundle(r); S.roster=b.roster; S.lobby=b.lobby; S.results=b.results; S.rules=b.rules; }
+const roundInfo = r => S.rounds.find(x=>x.id===r)||{id:r,name:'Round '+r,prefillNeedsEmail:false};
+if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
+bind(S.round);
 let curG = null, draft = null, standG = null;
 const $ = id => document.getElementById(id);
-const save = () => { try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){} };
+const save = () => { try{ const b=bundle(S.round); b.roster=S.roster; b.lobby=S.lobby; b.results=S.results; b.rules=S.rules;
+  localStorage.setItem(LS, JSON.stringify({cfg:S.cfg,round:S.round,rounds:S.rounds,rd:S.rd,reports:S.reports,errors:S.errors})); }catch(e){} };
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='show'+(err?' err':''); clearTimeout(toast.t); toast.t=setTimeout(()=>t.className='',err?4500:2200); }
@@ -276,16 +293,23 @@ async function api(action, payload){
   const {apiUrl,key} = S.cfg; if(!apiUrl) throw new Error('No sheet connected');
   let r;
   if(action==='all') r = await fetch(`${apiUrl}${apiUrl.includes('?')?'&':'?'}action=all&key=${encodeURIComponent(key)}`);
-  else r = await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,key},payload))});
+  else r = await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,key,round:S.round},payload))});
   const j = await r.json(); if(!j.ok) throw new Error(j.error||'Sheet error'); return j;
 }
 function setPill(){ const p=$('syncPill'); const on=!!S.cfg.apiUrl; p.textContent=on?'Sheet connected':'Local only'; p.className='pill '+(on?'ok':'off'); }
 async function pull(quiet){
   const j = await api('all');
-  if(j.config) Object.assign(S.cfg, {tournament:j.config.tournament, placement:j.config.placement, kill:j.config.kill, qualify:j.config.qualify, slotMin:j.config.slotMin, slotMax:j.config.slotMax});
-  S.roster = j.roster; S.results = j.results||{}; S.rules = j.rules||{};
-  Object.keys(j.lobby||{}).forEach(g=>{ S.lobby[g] = {}; j.lobby[g].forEach(t=>S.lobby[g][t.slot]=t.name); });
-  save(); renderAll(); if(!quiet) toast('Loaded '+S.roster.length+' groups from sheet');
+  if(j.config){ Object.assign(S.cfg,{tournament:j.config.tournament,placement:j.config.placement,kill:j.config.kill,qualify:j.config.qualify,slotMin:j.config.slotMin,slotMax:j.config.slotMax});
+    if(j.config.rounds&&j.config.rounds.length) S.rounds=j.config.rounds; }
+  S.errors=j.errors||{}; S.reports=j.emailReport||{};
+  S.rounds.forEach(rd=>{ const b=bundle(rd.id);
+    b.roster=(j.rosters&&j.rosters[rd.id])||[]; b.results=(j.results&&j.results[rd.id])||{}; b.rules=(j.rules&&j.rules[rd.id])||{};
+    const sl=(j.lobby&&j.lobby[rd.id])||{}; Object.keys(sl).forEach(g=>{ b.lobby[g]={}; sl[g].forEach(t=>b.lobby[g][t.slot]=t.name); }); });
+  if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
+  bind(S.round); save(); renderAll();
+  if(!quiet){ const bad=Object.keys(S.errors);
+    if(bad.length) toast(`${roundInfo(+bad[0]).name}: ${S.errors[bad[0]]}`,true);
+    else toast('Loaded '+S.rounds.map(r=>`${r.name}: ${bundle(r.id).roster.length} groups`).join(' · ')); }
 }
 
 /* =====================  HELPERS  ===================== */
@@ -314,13 +338,13 @@ const fmtTime = t => { const m=/(\d{1,2}:\d{2})(?::\d{2})?\s*([AP]M)/i.exec(t||'
 /* =====================  MATCH DESK  ===================== */
 function status(g){ return S.results[g]?'done':(S.lobby[g]&&Object.values(S.lobby[g]).some(Boolean)?'lob':''); }
 function renderGrid(){
-  if(!S.roster.length){ $('groupGrid').innerHTML='<div class="empty">No groups yet. Open <b>Settings</b> → connect your sheet (or load the demo roster).</div>'; return; }
+  if(!S.roster.length){ const er=S.errors[S.round]; $('groupGrid').innerHTML=er?`<div class="empty"><b>${esc(roundInfo(S.round).name)}</b> could not be loaded from the sheet:<br>${esc(er)}</div>`:'<div class="empty">No groups yet. Open <b>Settings</b> → connect your sheet (or load the demo roster).</div>'; return; }
   $('groupGrid').innerHTML = S.roster.map(g=>`<button class="g ${status(g.no)} ${g.no===curG?'sel':''}" data-g="${g.no}"><b>${g.no}</b><small>${esc(fmtTime(g.time))}</small></button>`).join('');
 }
 function selectGroup(n){
   curG=n; draft=null; $('draftCard').style.display='none'; $('paste').value='';
-  const g=grp(n); if(!S.lobby[n]){ // prefill from sheet: only teams that have an email
-    S.lobby[n]={}; g.teams.forEach(t=>{ if(t.email) S.lobby[n][t.slot]=t.name; });
+  const g=grp(n); if(!S.lobby[n]){ // prefill from the sheet (Round 1 skips placeholder teams that have no email)
+    const need=!!roundInfo(S.round).prefillNeedsEmail; S.lobby[n]={}; g.teams.forEach(t=>{ if(!need||t.email) S.lobby[n][t.slot]=t.name; });
   }
   $('deskBody').style.display='block'; renderGrid(); renderSlots(); updatePromptInfo();
   $('gTitle').textContent='Group '+n; $('gMeta').innerHTML=`<span>Date <b>${esc(g.date)}</b></span><span>Time <b>${esc(fmtTime(g.time))}</b></span><span>Map <b>${esc(g.map)}</b></span><span>Teams in group <b>${g.teams.length}</b></span>`;
@@ -355,7 +379,7 @@ function updatePromptInfo(){ const n=lobbyTeams(curG).length; $('promptInfo').te
 function buildPrompt(g){
   const lt=lobbyTeams(g), c=S.cfg, R=rulesFor(g), P=R.placement;
   const ptsTxt = P.map((p,i)=>`#${i+1}: ${p}`).join(', ')+`, #${P.length+1} and below: 0`;
-  return `You are an expert PUBG Mobile tournament result processor for ${c.tournament}. Extract, calculate and format ONE match (Group ${g}) from screenshots into a sheet-ready table.
+  return `You are an expert PUBG Mobile tournament result processor for ${c.tournament} (${roundInfo(S.round).name}). Extract, calculate and format ONE match (${roundInfo(S.round).name}, Group ${g}) from screenshots into a sheet-ready table.
 
 LOBBY (authoritative slot → team; teams sit on slots ${c.slotMin}–${c.slotMax}):
 Slot\tTeam Name\tTeam Email
@@ -477,14 +501,15 @@ function standTable(rows,g){ const q=qualifyFor(g); return `<table><thead><tr><t
   rows.map(r=>`<tr class="${r.rank<=q?'q':'out'}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td><td class="n tot">${r.total}</td><td class="n"><span class="st ${r.rank<=q?'q':'o'}">${r.rank<=q?'QUALIFIED':'OUT'}</span></td></tr>`).join('')+`</tbody></table>`; }
 let qTimer;
 function setQualify(g,v){ const n=Math.floor(+v); if(!(n>=1)||!S.results[g]) return; const r=S.results[g]; r.qualify=Math.min(n,99); save(); renderStand(); if(document.querySelector('#poster.on')) drawPoster();
-  clearTimeout(qTimer); qTimer=setTimeout(async()=>{ if(!S.cfg.apiUrl) return; try{ await api('saveResult',{group:g,slots:lobbyPayloadFor(g),rows:r.rows,qualify:r.qualify}); toast(`Group ${g}: top ${r.qualify} qualify · sheet updated ✔`); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } },800); }
+  const rd=S.round, sl=lobbyPayloadFor(g); clearTimeout(qTimer); qTimer=setTimeout(async()=>{ if(!S.cfg.apiUrl) return; try{ await api('saveResult',{round:rd,group:g,slots:sl,rows:r.rows,qualify:r.qualify}); toast(`Group ${g}: top ${r.qualify} qualify · sheet updated ✔`); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } },800); }
 function renderStand(){
   standOptions(); const r=S.results[standG];
   $('standBox').innerHTML = r? standTable(r.rows,standG) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
   ['btnCopyTsv','btnCsv','btnEdit','btnToPoster','sQualG','pQual'].forEach(i=>$(i).disabled=!r);
   ['sQualG','pQual'].forEach(i=>{ if(document.activeElement!==$(i)) $(i).value=r?qualifyFor(standG):''; });
   const q=Object.keys(S.results).map(Number).sort((a,b)=>a-b).map(g=>`<div style="margin-bottom:10px"><b style="font-family:var(--cond);letter-spacing:.06em">GROUP ${g} · TOP ${qualifyFor(g)}</b><div class="chips">${S.results[g].rows.filter(x=>x.rank<=qualifyFor(g)).map(x=>`<span class="chip">${x.rank}. ${esc(x.team)}</span>`).join('')}</div></div>`).join('');
-  $('qualBox').innerHTML=q||'<div class="note">Nothing yet.</div>';
+  const gs=Object.keys(S.results), tot=gs.reduce((n,g)=>n+Math.min(qualifyFor(+g),S.results[g].rows.length),0);
+  $('qualBox').innerHTML=q?`<div class="note" style="margin-bottom:10px"><b>${tot}</b> teams qualified from ${gs.length} group(s) so far · ${esc(roundInfo(S.round).name)}</div>`+q:'<div class="note">Nothing yet.</div>';
 }
 const tsv = rows => ['Overall Match Rank','Team Name','Chicken Dinner','Placement Point','Kill Point','Total Point','Team Email'].join('\t')+'\n'+rows.map(r=>[r.rank,r.team,r.wwcd||'',r.place,r.kills,r.total,r.email].join('\t')).join('\n');
 
@@ -555,7 +580,7 @@ async function drawPoster(){
   if(!res){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
   const qn=qualifyFor(g), sb=S.cfg.statusCol;
   // title block
-  x.letterSpacing='8px'; x.fillStyle=T.accTxt; x.font='700 34px "Barlow Condensed"'; x.fillText((S.cfg.sub||'').toUpperCase(),70,92); x.letterSpacing='0px';
+  x.letterSpacing='8px'; x.fillStyle=T.accTxt; x.font='700 34px "Barlow Condensed"'; x.fillText([S.cfg.showRound?roundInfo(S.round).name:'',S.cfg.sub||''].filter(Boolean).join('  ·  ').toUpperCase(),70,92); x.letterSpacing='0px';
   const name=(S.cfg.tournament||'TOURNAMENT').toUpperCase(), ts=fitText(x,name,1180,128,{w:'400',f:'Anton'});
   x.fillStyle=T.txt; x.font=`400 ${ts}px Anton`; x.fillText(name,66,92+ts*.98);
   x.fillStyle=acc; x.fillRect(70,92+ts*.98+16,150,8);
@@ -610,13 +635,38 @@ function curRuleG(){ return +$('rGroup').value||0; }
 function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
-  $('rNote').textContent=g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'These rules apply to every group that has no rules of its own.'; }
-function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol;
+  $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
+function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound;
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
   document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); }
-function renderAll(){ $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
+function renderRoundBar(){ $('roundBar').innerHTML=S.rounds.map(r=>{ const b=bundle(r.id), total=b.roster.length, done=Object.keys(b.results).length;
+  return `<button data-r="${r.id}" class="${r.id===S.round?'on':''}">${esc(r.name)}<small>${done}/${total||'–'} groups done</small></button>`; }).join(''); }
+function switchRound(r){ if(r===S.round) return; save(); bind(r); save(); curG=null; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
+function renderCheck(){ const c=$('checkCard'), info=roundInfo(S.round), first=S.rounds[0].id, err=S.errors[S.round], rep=S.reports[S.round];
+  if(S.round===first&&!err){ c.style.display='none'; return; } c.style.display='block';
+  const chips=(arr,cls,max=40)=>arr.slice(0,max).map(x=>`<span class="chip ${cls}">${esc(x)}</span>`).join('')+(arr.length>max?`<span class="chip">+${arr.length-max} more</span>`:'');
+  let h=`<h2>${esc(info.name)} check</h2>`;
+  if(err) h+=`<p class="sub">Could not read this round from the sheet.</p><div class="chips"><span class="chip b">${esc(err)}</span></div><p class="note">Check that the tab is named exactly as in <code>CONFIG.rounds</code> in Code.gs, then click <b>Save &amp; load from sheet</b>.</p>`;
+  else{
+    const teams=S.roster.reduce((n,g)=>n+g.teams.length,0); h+=`<p class="sub">${S.roster.length} groups · ${teams} teams loaded from the sheet.</p>`;
+    const prev=S.rd[S.round-1];
+    if(prev && Object.keys(prev.results).length){
+      const gs=Object.keys(prev.results), qual={}; gs.forEach(g=>{ const r=prev.results[g], q=r.qualify>0?r.qualify:S.cfg.qualify; r.rows.filter(x=>x.rank<=q).forEach(x=>qual[norm(x.team)]=x.team); });
+      const have={}; S.roster.forEach(g=>g.teams.forEach(t=>have[norm(t.name)]=t.name));
+      const missing=Object.keys(qual).filter(k=>!have[k]).map(k=>qual[k]), extra=Object.keys(have).filter(k=>!qual[k]).map(k=>have[k]);
+      h+=`<h3 style="margin:12px 0 6px">Qualified from ${esc(roundInfo(S.round-1).name)}</h3><div class="chips"><span class="chip g2">${Object.keys(qual).length} qualified teams (${gs.length} group${gs.length>1?'s':''} with results)</span><span class="chip ${missing.length?'w':'g2'}">${missing.length} not found in this round</span><span class="chip ${extra.length?'w':'g2'}">${extra.length} not in the qualified list</span></div>`;
+      if(missing.length) h+=`<p class="note" style="margin-top:8px">Qualified but missing here:</p><div class="chips">${chips(missing,'w')}</div>`;
+      if(extra.length) h+=`<p class="note" style="margin-top:8px">In this round but not found among the qualified (spelling?):</p><div class="chips">${chips(extra,'w')}</div>`;
+      const prevTotal=prev.roster.length; if(gs.length<prevTotal) h+=`<p class="note">Only ${gs.length} of ${prevTotal} ${esc(roundInfo(S.round-1).name)} groups have saved results, so these lists may be incomplete.</p>`;
+    } else h+=`<p class="note">No saved ${esc(roundInfo(S.round-1).name)} results yet, so qualified teams can't be compared.</p>`;
+    const blank=[]; S.roster.forEach(g=>g.teams.forEach(t=>{ if(!t.email) blank.push(`G${g.no} #${t.slot} ${t.name}`); }));
+    h+=`<h3 style="margin:12px 0 6px">Team emails</h3><div class="chips"><span class="chip ${blank.length?'w':'g2'}">${blank.length} team(s) without an email</span>${rep?`<span class="chip g2">${rep.filled} filled automatically from ${esc(roundInfo(S.round-1).name)}</span>`:''}</div>`;
+    if(blank.length) h+=`<div class="chips">${chips(blank,'w')}</div><p class="note">Type the email into the team's row in the sheet (or fix the team name so it matches ${esc(roundInfo(S.round-1).name)}), then click <b>Save &amp; load from sheet</b>. Teams without an email still work; the email is only a safety check.</p>`;
+  }
+  c.innerHTML=h; }
+function renderAll(){ renderRoundBar(); renderCheck(); $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
   setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); }
 function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='stand') renderStand(); }
 
@@ -624,6 +674,7 @@ document.addEventListener('click',async e=>{
   const t=e.target.closest('button'); if(!t) return;
   if(t.dataset.t) return tab(t.dataset.t);
   if(t.classList.contains('g')) return selectGroup(+t.dataset.g);
+  if(t.dataset.r) return switchRound(+t.dataset.r);
   if(t.dataset.a){ S.cfg.accent=t.dataset.a; save(); renderAll(); return; }
   if(t.dataset.bd){ S.cfg.bd=t.dataset.bd; save(); renderPosterForm(); drawPoster(); return; }
   if(t.dataset.del){ draft.rows.splice(+t.dataset.del,1); return renderDraft(); }
@@ -669,7 +720,7 @@ $('btnAddRow').onclick=()=>{ const s=+$('addMissing').value; if(!s) return; cons
 $('btnSaveResult').onclick=saveResult;
 $('standGroup').onchange=e=>{ standG=+e.target.value; renderStand(); };
 $('btnCopyTsv').onclick=async()=>{ await navigator.clipboard.writeText(tsv(S.results[standG].rows)); toast('Copied. Paste into Google Sheets'); };
-$('btnCsv').onclick=()=>{ const csv=tsv(S.results[standG].rows).split('\n').map(l=>l.split('\t').map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`group-${standG}-standings.csv`; a.click(); };
+$('btnCsv').onclick=()=>{ const csv=tsv(S.results[standG].rows).split('\n').map(l=>l.split('\t').map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`round-${S.round}-group-${standG}-standings.csv`; a.click(); };
 $('btnEdit').onclick=()=>{ tab('desk'); selectGroup(standG); startDraft(S.results[standG].rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); };
 $('btnToPoster').onclick=()=>tab('poster');
 $('pGroup').onchange=e=>{ standG=+e.target.value; drawPoster(); };
@@ -680,11 +731,12 @@ $('pMode').onchange=e=>{ S.cfg.imgMode=e.target.value; save(); drawPoster(); };
 $('pDim').oninput=e=>{ S.cfg.dim=+e.target.value; save(); drawPoster(); };
 $('pFoot').oninput=e=>{ S.cfg.footer=e.target.value; save(); drawPoster(); };
 $('pStat').onchange=e=>{ S.cfg.statusCol=e.target.checked; save(); drawPoster(); };
+$('pRound').onchange=e=>{ S.cfg.showRound=e.target.checked; save(); drawPoster(); };
 $('pQual').oninput=e=>setQualify(standG,e.target.value);
 $('sQualG').oninput=e=>setQualify(standG,e.target.value);
 $('dQual').oninput=e=>{ const n=Math.floor(+e.target.value); if(draft&&n>=1){ draft.qualify=Math.min(n,99); renderDraft(); } };
 $('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoster(); };
-$('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-group-${standG}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
+$('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${standG}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
 $('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
 $('btnConnect').onclick=async()=>{ S.cfg.apiUrl=$('sUrl').value.trim(); S.cfg.key=$('sKey').value; save(); setPill(); if(!S.cfg.apiUrl){ renderSettings(); return toast('Disconnected'); }
   try{ await pull(); }catch(e){ toast('Could not connect: '+e.message,true); } };
