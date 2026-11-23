@@ -1,25 +1,24 @@
-# A1RG CUP Points Desk – setup & update guide
+# A1RG CUP – Points Desk v3 (multi-round)
 
-## Updating from the previous version
-1. Apps Script: replace ALL of `Code.gs` with the new file (re-set `ADMIN_KEY`). Deploy > Manage deployments > pencil > Version: **New version** > Deploy. The URL does not change.
-2. Run `rebuildNow` once from the editor (function menu > rebuildNow > Run, allow permissions if asked). It builds the formatted tabs from the results you already saved.
-3. GitHub: replace `index.html`, then hard-refresh (Ctrl+F5).
+Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google Sheet bridge).
 
-## Tabs in your Google Sheet
-| Tab | For | Notes |
-|---|---|---|
-| Groups - Playing | you | your roster, never touched |
-| **Group-Overall** | humans | one header box per group, groups in order, green = qualified, red = out |
-| **Group-Slots** | humans | one header box per group with the lobby |
-| Results-DB / Lobby-DB / Rules-DB | the website | grey data tabs. Do not edit by hand |
+## Update steps (from v2)
+1. Google Sheet → Extensions → Apps Script → replace ALL of Code.gs with the new one. Set `ADMIN_KEY` again (same passcode as before).
+2. Deploy → Manage deployments → pencil → Version: **New version** → Deploy. (The web-app URL stays the same.)
+3. Make sure the Round 2 tab is named exactly **Round 2 - Playing**.
+4. In the Apps Script editor run `rebuildNow` once (builds the nice formatted tabs).
+5. GitHub: replace `index.html`, commit. Open the site, Ctrl+F5.
+6. Settings → **Save & load from sheet**. Use the ROUND 1 / ROUND 2 buttons at the top.
 
-## Match flow
-Group → seat teams (drag or search) → Copy message for Claude → paste into Claude with screenshots → paste Claude's table back → Check → set "Teams qualifying" if different → Save.
+## How rounds work
+- Each round has its own roster tab, groups, lobby, results, rules and qualify counts. Switching rounds never touches the other round.
+- Round 2 emails are filled automatically from Round 1 (exact name match, or one clear close match). Teams without an email still work.
+- Settings → **Round check** shows: qualified Round 1 teams missing from Round 2, extra/misspelled teams, and teams without email.
+- DB tabs (Results-DB, Lobby-DB, Rules-DB) have a Round column (blank = Round 1).
+- Pretty tabs: `Group-Overall` / `Group-Slots` (Round 1), `R2 Group-Overall` / `R2 Group-Slots` (Round 2).
+- Posters/filenames/prompts include the round name.
 
-## Qualify count & scoring
-- "Teams qualifying" can be changed per group in Match Desk, Standings and Poster. The sheet updates automatically.
-- Settings > Scoring: default for all groups, or custom rules for one group (placement points, kill points, qualify count). Shared with all admins.
-- Ranking: total points → chicken dinner → placement pts → kills → best finish.
-
-## Pictures
-Loaded from `website-assets` via raw.githubusercontent.com (repo must be public). Poster > Picture layout: Auto / Full background / Right-side cutout / Right half.
+## Adding Round 3 later
+1. Create a tab (same layout as Round 2) e.g. `Round 3 - Playing`.
+2. In Code.gs `CONFIG.rounds` add: `{id:3,name:'Round 3',tab:'Round 3 - Playing',emailsFrom:2,prefillNeedsEmail:false}`.
+3. Deploy a new version, click Save & load from sheet. A ROUND 3 button appears.
