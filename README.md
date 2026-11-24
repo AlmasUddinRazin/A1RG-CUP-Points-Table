@@ -1,4 +1,4 @@
-# A1RG CUP – Points Desk v3 (multi-round)
+# A1RG CUP – Points Desk v4 (multi-round · multi-match · two-way sheet sync)
 
 Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google Sheet bridge).
 
@@ -22,3 +22,14 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 1. Create a tab (same layout as Round 2) e.g. `Round 3 - Playing`.
 2. In Code.gs `CONFIG.rounds` add: `{id:3,name:'Round 3',tab:'Round 3 - Playing',emailsFrom:2,prefillNeedsEmail:false}`.
 3. Deploy a new version, click Save & load from sheet. A ROUND 3 button appears.
+
+## v4: matches, days and two-way sync
+**Matches per group** – Settings → *Round format* (saved to the sheet in `Rounds-DB`). In Match Desk pick the group, then **M1, M2, M3…** and the **Day**. Each match is saved separately; the group overall is the SUM. Tie-break: total → chicken dinners → placement pts → kills → last match finish.
+**Standings / Poster** – the "View/Show" box switches between *Overall* and any single match; both can be downloaded as PNG/CSV.
+**Sheet tabs** – `Results-DB` has Match + Day columns. `R2 Group-Overall` = sum + per-match totals, `R2 Group-Matches` = every match (appears when a round has more than 1 match).
+
+**Two-way lobby sync (Round 2 and later rounds with `syncSeating:true`)**
+- The roster tab (e.g. `Round 2 - Playing`) IS the lobby. Change a team name/slot there → the website updates by itself within ~30 s (or click the "Sheet connected" badge).
+- Change slots on the website → saved automatically (≈1 s) and the roster tab is rewritten. A team you take out of the lobby stays selectable under "Not seated".
+- `R2 Group-Slots` is only a mirror to read. Edit the roster tab, not that tab.
+- Round 1 keeps the old behaviour (its roster tab is not rewritten).
