@@ -33,3 +33,10 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 - Change slots on the website → saved automatically (≈1 s) and the roster tab is rewritten. A team you take out of the lobby stays selectable under "Not seated".
 - `R2 Group-Slots` is only a mirror to read. Edit the roster tab, not that tab.
 - Round 1 keeps the old behaviour (its roster tab is not rewritten).
+
+## v4.1
+- **Round format** (Match Desk top + Settings): choose Matches per group (1–30) and Days (1–10) for the selected round. Saved to `Rounds-DB`. The Day box in Match Desk offers exactly those days.
+- **Standings / Poster "View"**: Overall · Day N (sum of that day's matches) · Match N. The poster header says e.g. `ROUND 2 · DAY 1 · OVERALL STANDING · M1–M2`.
+- **Overall tab** (top bar): every team of the round ranked together by the sum of its matches; filter by Group and by Day; Copy/CSV.
+- **Group numbers**: a round whose tab numbers groups 1–16 is shown as 33–48 automatically (continues after Round 1). Force with `groupOffset` in `CONFIG.rounds`. If you already saved Round 2 data under 1–16, run `migrateRound2Numbers` once from the Apps Script editor.
+- `R2 Group-Slots` lists every group of the round and follows the roster tab; it carries no day/match info.
