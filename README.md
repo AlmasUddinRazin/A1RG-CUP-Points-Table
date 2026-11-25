@@ -40,3 +40,8 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 - **Overall tab** (top bar): every team of the round ranked together by the sum of its matches; filter by Group and by Day; Copy/CSV.
 - **Group numbers**: a round whose tab numbers groups 1–16 is shown as 33–48 automatically (continues after Round 1). Force with `groupOffset` in `CONFIG.rounds`. If you already saved Round 2 data under 1–16, run `migrateRound2Numbers` once from the Apps Script editor.
 - `R2 Group-Slots` lists every group of the round and follows the roster tab; it carries no day/match info.
+
+## v4.2
+- **Maps**: Match Desk → Round format → pick the map of every match (Erangel / Miramar / Rondo; any sequence you like, e.g. E/M/R/E/M). Saved in `Rounds-DB` and written into the `Map` cell of every group in the roster tab (Round 2+). Shown in Match Desk, Standings, Overall, posters (footer) and the sheet tabs. With 1 match you can still pick the map. If no map is chosen, the map typed in the roster tab is used.
+- **Date / time**: read from the roster tab on every sync (≈30 s or click the "Sheet connected" badge) – edit them in the sheet and they change on the website and posters.
+- **Poster pages**: 8 teams per page (16 teams = 2 pages). Choose the page in the Poster tab; "Download all pages" saves both. "16 on one page" keeps the old compact layout. Multi-match overalls show per-match points columns (up to 5 matches).
