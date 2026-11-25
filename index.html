@@ -134,6 +134,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <nav id="nav">
     <button data-t="desk" class="on">Match Desk</button>
     <button data-t="stand">Standings</button>
+    <button data-t="overall">Overall</button>
     <button data-t="poster">Poster</button>
     <button data-t="set">Settings</button>
   </nav>
@@ -142,6 +143,10 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
 <main>
 <!-- ================= MATCH DESK ================= -->
 <section id="desk" class="on">
+  <div class="card">
+    <div class="row sp"><div><h3>Round format · <span id="fmtTitle"></span></h3><div class="note">Choose how many matches and days this round has. You can change it any time.</div></div>
+      <div class="row"><label class="inl note">Matches per group <select id="qMatches" style="width:auto"></select></label><label class="inl note">Days <select id="qDays" style="width:auto"></select></label></div></div>
+  </div>
   <div class="card">
     <div class="step"><i>1</i><div><h3>Pick the group</h3><div class="note">Click the group that is playing now.</div></div></div>
     <div class="groups" id="groupGrid"></div>
@@ -210,6 +215,14 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <div class="card"><h3 style="margin-bottom:10px">Qualified teams so far</h3><div id="qualBox"></div></div>
 </section>
 
+<!-- ================= OVERALL ================= -->
+<section id="overall">
+  <div class="card"><div class="row sp"><div><h2>Round overall</h2><p class="sub" style="margin:0" id="ovSub"></p></div>
+    <div class="row"><select id="ovGroup" style="width:auto"></select><select id="ovDay" style="width:auto"></select></div></div></div>
+  <div class="card"><div class="tw" id="ovBox"></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="btnOvTsv">Copy for Sheets</button><button class="btn ghost" id="btnOvCsv">Download CSV</button></div></div>
+</section>
+
 <!-- ================= POSTER ================= -->
 <section id="poster">
   <div class="pgrid">
@@ -257,7 +270,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <div class="card">
     <h2>Round format</h2>
     <p class="sub">How many matches every group plays in the selected round. A group's overall standing is the sum of its matches (ties: chicken dinners → placement pts → kills → last match finish). Shared with every admin when the sheet is connected.</p>
-    <label class="f" id="fmtLabel">Matches per group</label><input id="sMatches" type="number" min="1" max="30" style="width:120px">
+    <div class="row"><div><label class="f" id="fmtLabel">Matches per group</label><select id="sMatches" style="width:140px"></select></div><div><label class="f">Days</label><select id="sDays" style="width:140px"></select></div></div>
     <p class="note" id="fmtNote"></p>
   </div>
   <div class="card">
@@ -323,9 +336,10 @@ const bundle = r => { const b=S.rd[r]||(S.rd[r]={roster:[],lobby:{},results:{},r
 function bind(r){ S.round=r; const b=bundle(r); S.roster=b.roster; S.lobby=b.lobby; S.results=b.results; S.mres=b.mres; S.rules=b.rules; }
 const roundInfo = r => S.rounds.find(x=>x.id===r)||{id:r,name:'Round '+r,prefillNeedsEmail:false};
 const matchesN = () => Math.max(1,Math.min(30,+roundInfo(S.round).matches||1));
+const daysN = () => Math.max(1,Math.min(14,+roundInfo(S.round).days||1));
 if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
 bind(S.round);
-let curG = null, curM = 1, curDay = 1, viewM = 0, draft = null, standG = null;
+let curG = null, curM = 1, curDay = 1, viewM = 0, viewD = 0, draft = null, standG = null;
 const pendingLobby = new Set(); let lastSync = null, syncing = false, lastSig = '';
 const $ = id => document.getElementById(id);
 const save = () => { try{ const b=bundle(S.round); b.roster=S.roster; b.lobby=S.lobby; b.results=S.results; b.mres=S.mres; b.rules=S.rules;
@@ -440,7 +454,8 @@ function lobbyPayload(){ return lobbyTeams(curG).map(t=>({slot:t.slot,name:t.nam
 function renderMatchBar(){ if(!curG) return; const N=matchesN(), mm=S.mres[curG]||{}; if(curM>N) curM=N;
   $('mTitle').textContent='Group '+curG+' · Match '+curM+' of '+N;
   $('matchBar').innerHTML=[...Array(N)].map((_,i)=>{ const m=i+1; return `<button class="mb ${m===curM?'on':''} ${mm[m]?'ok':''}" data-m="${m}" title="${mm[m]?'Result saved'+(mm[m].day?' · Day '+mm[m].day:''):'No result yet'}">M${m}${mm[m]?' ✔':''}</button>`; }).join('');
-  $('dayNo').value=String(curDay);
+  let mx=Math.max(daysN(),curDay); Object.keys(S.mres).forEach(g=>Object.values(S.mres[g]).forEach(m=>{ mx=Math.max(mx,m.day||0); }));
+  $('dayNo').innerHTML=(curDay===0?'<option value="0">No day</option>':'')+[...Array(mx)].map((_,i)=>`<option value="${i+1}">Day ${i+1}</option>`).join(''); $('dayNo').value=String(curDay);
   $('matchNote').textContent=mm[curM]?`Match ${curM} is already saved. A new table replaces it, or open the saved one to fix it.`:(N>1?'Pick the match you are entering. Every match is saved separately; the group overall is their sum.':'Pick the day of this match (optional).');
   $('btnLoadMatch').style.display=mm[curM]?'':'none'; }
 function pickMatch(m){ curM=m; draft=null; $('draftCard').style.display='none'; $('paste').value=''; curDay=defaultDay(curG,m); renderMatchBar(); updatePromptInfo(); }
@@ -567,7 +582,7 @@ async function saveResult(){
   const N=matchesN(), label=`Group ${g}${N>1?' · Match '+m:''}`;
   if(S.cfg.apiUrl){ $('btnSaveResult').disabled=true; try{ await api('saveResult',{group:g,match:m,day,slots:lobbyPayloadFor(g),bench:benchFor(g),rows,qualify:draft.qualify}); pendingLobby.delete(rd+':'+g); toast(`${label} saved to sheet ✔`); }catch(e){ toast('Saved on this device only. Sheet error: '+e.message,true); } $('btnSaveResult').disabled=false; }
   else toast(`${label} saved locally (no sheet connected)`);
-  standG=g; viewM=N>1?m:0; renderStand();
+  standG=g; viewM=N>1?m:0; viewD=0; renderStand();
   if(N>1 && m<N){ const nx=m+1; if(!(S.mres[g]||{})[nx] && confirm(`${label} saved ✔\n\nGo to Match ${nx} of this group?`)) pickMatch(nx); }
 }
 
@@ -577,20 +592,28 @@ function standOptions(){ const done=Object.keys(S.results).map(Number).sort((a,b
   $('standGroup').innerHTML=html; if(!done.includes(standG)) standG=done[0]??null; $('standGroup').value=standG??'';
   $('pGroup').innerHTML=html; $('pGroup').value=standG??'';
   const N=matchesN(), mm=S.mres[standG]||{}, ks=Object.keys(mm).map(Number).sort((a,b)=>a-b); if(!mm[viewM]) viewM=0;
-  const opts=`<option value="0">Overall standing${N>1?` · after ${ks.length}/${N} matches`:''}</option>`+ks.map(m=>`<option value="${m}">Match ${m}${mm[m].day?' · Day '+mm[m].day:''}</option>`).join('');
-  $('standView').innerHTML=opts; $('pView').innerHTML=opts; $('standView').value=$('pView').value=String(viewM);
-  const show=N>1||ks.length>1; $('standView').style.display=show?'':'none'; $('pViewWrap').style.display=show?'':'none'; }
-function viewRes(g){ const x=(S.mres[g]||{})[viewM]; if(viewM&&x) return {rows:x.rows.slice().sort((a,b)=>a.rank-b.rank),qualify:qualifyFor(g),savedAt:x.savedAt,day:x.day,match:viewM}; return S.results[g]; }
+  const dset={}; ks.forEach(k=>{ const d=mm[k].day||0; if(d) (dset[d]=dset[d]||[]).push(k); }); const ds=Object.keys(dset).map(Number).sort((a,b)=>a-b); if(!dset[viewD]) viewD=0;
+  const opts=`<option value="0">Overall standing${N>1?` · after ${ks.length}/${N} matches`:''}</option>`+
+    ds.map(d=>`<option value="d${d}">Day ${d} standing · ${dset[d].length>1?'M'+dset[d][0]+'–M'+dset[d][dset[d].length-1]:'M'+dset[d][0]}</option>`).join('')+
+    ks.map(m=>`<option value="m${m}">Match ${m}${mm[m].day?' · Day '+mm[m].day:''}</option>`).join('');
+  const cur=viewM?'m'+viewM:(viewD?'d'+viewD:'0'); $('standView').innerHTML=opts; $('pView').innerHTML=opts; $('standView').value=$('pView').value=cur;
+  const show=N>1||ks.length>1||ds.length>0; $('standView').style.display=show?'':'none'; $('pViewWrap').style.display=show?'':'none'; }
+function setView(v){ viewM=v[0]==='m'?+v.slice(1):0; viewD=v[0]==='d'?+v.slice(1):0; }
+function viewRes(g){ const mm=S.mres[g]||{}, x=mm[viewM];
+  if(viewM&&x) return {kind:'match',rows:x.rows.slice().sort((a,b)=>a.rank-b.rank),qualify:qualifyFor(g),savedAt:x.savedAt,day:x.day,match:viewM,ms:[viewM]};
+  if(viewD){ const sub={}; Object.keys(mm).forEach(k=>{ if((mm[k].day||0)===viewD) sub[k]=mm[k]; }); const o=overallOf(sub); if(o){ o.qualify=qualifyFor(g); o.kind='day'; o.day=viewD; o.ms=Object.keys(sub).map(Number).sort((a,b)=>a-b); return o; } }
+  const o=S.results[g]; return o?Object.assign({kind:'overall',ms:Object.keys(mm).map(Number).sort((a,b)=>a-b)},o):o; }
 const maxMatch=g=>Math.max(0,...Object.keys(S.mres[g]||{}).map(Number));
-function standTable(rows,g,isMatch){ const q=qualifyFor(g), K=isMatch?0:maxMatch(g), mc=K>1?K:0;
-  return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${[...Array(mc)].map((_,i)=>`<th class="n">M${i+1}</th>`).join('')}<th class="n">Total</th>${isMatch?'':'<th class="n">Status</th>'}</tr></thead><tbody>`+
-  rows.map(r=>`<tr class="${isMatch?'':(r.rank<=q?'q':'out')}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${[...Array(mc)].map((_,i)=>`<td class="n">${r.mt&&r.mt[i+1]!=null?r.mt[i+1]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${isMatch?'':`<td class="n"><span class="st ${r.rank<=q?'q':'o'}">${r.rank<=q?'QUALIFIED':'OUT'}</span></td>`}</tr>`).join('')+`</tbody></table>`; }
+function standTable(rows,g,kind,ms){ const q=qualifyFor(g), isMatch=kind==='match', ml=(!isMatch&&ms&&ms.length>1)?ms:[];
+  return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ml.map(m=>`<th class="n">M${m}</th>`).join('')}<th class="n">Total</th>${kind==='overall'?'<th class="n">Status</th>':''}</tr></thead><tbody>`+
+  rows.map(r=>`<tr class="${kind==='overall'?(r.rank<=q?'q':'out'):''}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${ml.map(m=>`<td class="n">${r.mt&&r.mt[m]!=null?r.mt[m]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${kind==='overall'?`<td class="n"><span class="st ${r.rank<=q?'q':'o'}">${r.rank<=q?'QUALIFIED':'OUT'}</span></td>`:''}</tr>`).join('')+`</tbody></table>`; }
 let qTimer;
 function setQualify(g,v){ const n=Math.floor(+v); if(!(n>=1)||!S.mres[g]) return; Object.values(S.mres[g]).forEach(x=>x.qualify=Math.min(n,99)); recompute(bundle(S.round)); save(); renderStand(); if(document.querySelector('#poster.on')) drawPoster();
   const rd=S.round, q=S.results[g].qualify; clearTimeout(qTimer); qTimer=setTimeout(async()=>{ if(!S.cfg.apiUrl||rd!==S.round) return; try{ await api('saveQualify',{round:rd,group:g,qualify:q}); toast(`Group ${g}: top ${q} qualify · sheet updated ✔`); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } },800); }
 function renderStand(){
   standOptions(); const r=viewRes(standG), N=matchesN();
-  $('standBox').innerHTML = r? (viewM?`<div class="note" style="margin-bottom:8px">Match ${viewM} of ${N}${r.day?' · Day '+r.day:''} · results of this match only</div>`:(N>1?`<div class="note" style="margin-bottom:8px">Overall = sum of ${r.played} match${r.played>1?'es':''}${r.played<N?` so far (of ${N})`:''}</div>`:''))+standTable(r.rows,standG,!!viewM) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
+  const note=!r?'':(r.kind==='match'?`Match ${r.match} of ${N}${r.day?' · Day '+r.day:''} · this match only`:r.kind==='day'?`Day ${r.day} · sum of ${r.ms.length} match${r.ms.length>1?'es':''} played that day (M${r.ms.join(', M')}) · no qualify marks`:(N>1?`Overall = sum of ${r.played} match${r.played>1?'es':''}${r.played<N?` so far (of ${N})`:''}`:''));
+  $('standBox').innerHTML = r? (note?`<div class="note" style="margin-bottom:8px">${note}</div>`:'')+standTable(r.rows,standG,r.kind,r.ms) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
   ['btnCopyTsv','btnCsv','btnEdit','btnToPoster','sQualG','pQual'].forEach(i=>$(i).disabled=!r);
   ['sQualG','pQual'].forEach(i=>{ if(document.activeElement!==$(i)) $(i).value=r?qualifyFor(standG):''; });
   const q=Object.keys(S.results).map(Number).sort((a,b)=>a-b).map(g=>`<div style="margin-bottom:10px"><b style="font-family:var(--cond);letter-spacing:.06em">GROUP ${g} · TOP ${qualifyFor(g)}${N>1&&S.results[g].played<N?` · after ${S.results[g].played}/${N} matches`:''}</b><div class="chips">${S.results[g].rows.filter(x=>x.rank<=qualifyFor(g)).map(x=>`<span class="chip">${x.rank}. ${esc(x.team)}</span>`).join('')}</div></div>`).join('');
@@ -599,7 +622,7 @@ function renderStand(){
 }
 const tsv = (rows,withM) => { const K=withM?Math.max(0,...rows.map(r=>Math.max(0,...Object.keys(r.mt||{}).map(Number)))):0, mc=K>1?K:0;
   return ['Rank','Team Name','Chicken Dinner','Placement Point','Kill Point'].concat([...Array(mc)].map((_,i)=>'M'+(i+1)),['Total Point','Team Email']).join('\t')+'\n'+rows.map(r=>[r.rank,r.team,r.wwcd||'',r.place,r.kills].concat([...Array(mc)].map((_,i)=>r.mt&&r.mt[i+1]!=null?r.mt[i+1]:''),[r.total,r.email]).join('\t')).join('\n'); };
-const viewTag=()=>viewM?'match-'+viewM:'overall';
+const viewTag=()=>viewM?'match-'+viewM:(viewD?'day-'+viewD:'overall');
 
 
 
@@ -669,10 +692,11 @@ async function drawPoster(){
   if(dark){ const sc=x.createLinearGradient(0,0,W*.72,0); sc.addColorStop(0,'rgba(0,0,0,.38)'); sc.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=sc; x.fillRect(0,0,W,H); }
   x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
   if(!res){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
-  const matchView=!!res.match, N=matchesN(), qn=matchView?999:qualifyFor(g), sb=!matchView&&S.cfg.statusCol;
+  const matchView=res.kind!=='overall', N=matchesN(), qn=matchView?999:qualifyFor(g), sb=!matchView&&S.cfg.statusCol;
   // title block
   const rn=S.cfg.showRound?roundInfo(S.round).name:''; let parts;
-  if(matchView) parts=[rn,res.day?`DAY ${res.day}`:'',`MATCH ${res.match} / ${N}`];
+  if(res.kind==='match') parts=[rn,res.day?`DAY ${res.day}`:'',`MATCH ${res.match} / ${N}`];
+  else if(res.kind==='day') parts=[rn,`DAY ${res.day}`,(S.cfg.sub||'STANDING')+(res.ms.length>1?` · M${res.ms[0]}–M${res.ms[res.ms.length-1]}`:` · MATCH ${res.ms[0]}`)];
   else{ const ds=Object.values(S.mres[g]||{}).map(m=>m.day).filter(Boolean), d0=Math.min(...ds), d1=Math.max(...ds);
     parts=[rn,ds.length?(d0===d1?`DAY ${d0}`:`DAYS ${d0}–${d1}`):'',(S.cfg.sub||'')+(N>1&&res.played<N?` · AFTER ${res.played}/${N}`:'')]; }
   const subTxt=parts.filter(Boolean).join('  ·  ').toUpperCase(); x.fillStyle=T.accTxt; x.font='700 34px "Barlow Condensed"';
@@ -727,7 +751,7 @@ function demoRoster(){
     teams:names.map((nm,i)=>({slot:i+5,name:`${nm} Esports G${n}`,email:i<12?`${nm.toLowerCase()}${n}@example.com`:''}))}));
   save(); renderAll(); toast('Demo roster loaded (fake teams)');
 }
-function renderSettings(){ const c=S.cfg; $('sMatches').value=matchesN(); $('fmtLabel').textContent='Matches per group · '+roundInfo(S.round).name; $('fmtNote').textContent=matchesN()>1?'Each group enters '+matchesN()+' separate results (Match Desk → M1, M2 …) and gets an overall standing. Individual matches and the overall can each be downloaded as a poster.':'One match per group. Raise this number for rounds where groups play several matches.'; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
+function renderSettings(){ const c=S.cfg; ['sMatches','qMatches'].forEach(i=>$(i).value=String(matchesN())); ['sDays','qDays'].forEach(i=>$(i).value=String(daysN())); $('fmtTitle').textContent=roundInfo(S.round).name; $('fmtLabel').textContent='Matches per group · '+roundInfo(S.round).name; $('fmtNote').textContent=matchesN()>1?'Each group enters '+matchesN()+' separate results (Match Desk → M1, M2 …) and gets an overall standing. Individual matches and the overall can each be downloaded as a poster.':'One match per group. Raise this number for rounds where groups play several matches.'; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
   ['sSlotMin','sSlotMax'].forEach(i=>$(i).disabled=!!c.apiUrl);
   $('sNote').textContent=c.apiUrl?'Connected. Slot range comes from Code.gs; scoring rules below are saved to the sheet.':'Not connected: data lives only in this browser.'; renderRules(); }
 function curRuleG(){ return +$('rGroup').value||0; }
@@ -742,7 +766,7 @@ function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pS
   document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); }
 function renderRoundBar(){ $('roundBar').innerHTML=S.rounds.map(r=>{ const b=bundle(r.id), total=b.roster.length, done=Object.keys(b.mres).filter(g=>Object.keys(b.mres[g]).length>=Math.max(1,+r.matches||1)).length;
   return `<button data-r="${r.id}" class="${r.id===S.round?'on':''}">${esc(r.name)}<small>${done}/${total||'–'} groups done</small></button>`; }).join(''); }
-function switchRound(r){ if(r===S.round) return; flushAllLobby(); save(); bind(r); save(); curG=null; curM=1; viewM=0; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
+function switchRound(r){ if(r===S.round) return; flushAllLobby(); save(); bind(r); save(); curG=null; curM=1; viewM=0; viewD=0; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
 function renderCheck(){ const c=$('checkCard'), info=roundInfo(S.round), first=S.rounds[0].id, err=S.errors[S.round], rep=S.reports[S.round];
   if(S.round===first&&!err){ c.style.display='none'; return; } c.style.display='block';
   const chips=(arr,cls,max=40)=>arr.slice(0,max).map(x=>`<span class="chip ${cls}">${esc(x)}</span>`).join('')+(arr.length>max?`<span class="chip">+${arr.length-max} more</span>`:'');
@@ -766,8 +790,22 @@ function renderCheck(){ const c=$('checkCard'), info=roundInfo(S.round), first=S
   }
   c.innerHTML=h; }
 function renderAll(){ renderRoundBar(); renderCheck(); $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
-  setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); }
-function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='stand') renderStand(); }
+  setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); if(document.querySelector('#overall.on')) renderOverall(); }
+let ovRows=[],ovCols=[];
+function renderOverall(){ const N=matchesN(), gs=Object.keys(S.mres).map(Number).sort((a,b)=>a-b), keepD=$('ovDay').value||'0', keepG=$('ovGroup').value||'0';
+  const days=[...new Set(gs.flatMap(g=>Object.values(S.mres[g]).map(m=>m.day||0)))].filter(x=>x>0).sort((a,b)=>a-b);
+  $('ovGroup').innerHTML='<option value="0">All groups</option>'+gs.map(g=>`<option value="${g}">Group ${g}</option>`).join(''); $('ovDay').innerHTML='<option value="0">All days (sum of every match)</option>'+days.map(d=>`<option value="${d}">Day ${d} only</option>`).join('');
+  $('ovGroup').value=gs.includes(+keepG)?keepG:'0'; $('ovDay').value=days.includes(+keepD)?keepD:'0'; const gsel=+$('ovGroup').value, dsel=+$('ovDay').value;
+  const pooled={}, who={}; gs.filter(g=>!gsel||g===gsel).forEach(g=>Object.keys(S.mres[g]).forEach(k=>{ const m=S.mres[g][k]; if(dsel&&(m.day||0)!==dsel) return;
+    (pooled[k]=pooled[k]||{rows:[],qualify:8,savedAt:''}).rows.push(...m.rows); m.rows.forEach(r=>{ who[norm(r.team)]=g; }); }));
+  const o=overallOf(pooled); $('ovSub').textContent=`${roundInfo(S.round).name} · every team of ${gsel?'Group '+gsel:'all groups'} ranked together by the sum of ${dsel?'Day '+dsel:'all'} matches · ties: chicken dinners → placement → kills → last match finish`;
+  ['btnOvTsv','btnOvCsv'].forEach(i=>$(i).disabled=!o); if(!o){ ovRows=[]; $('ovBox').innerHTML='<div class="empty">No results yet for this selection.</div>'; return; }
+  const ml=Object.keys(pooled).map(Number).sort((a,b)=>a-b), showM=ml.length>1; ovCols=showM?ml:[];
+  ovRows=o.rows.map(r=>{ const g=who[norm(r.team)], gr=(S.results[g]&&S.results[g].rows.find(x=>norm(x.team)===norm(r.team)))||{}; return Object.assign({},r,{g,grank:gr.rank,qual:gr.rank&&gr.rank<=qualifyFor(g)}); });
+  $('ovBox').innerHTML=`<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">Group</th><th class="n">Grp #</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ovCols.map(m=>`<th class="n">M${m}</th>`).join('')}<th class="n">Total</th>${dsel?'':'<th class="n">Status</th>'}</tr></thead><tbody>`+
+   ovRows.map(r=>`<tr class="${dsel?'':(r.qual?'q':'out')}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.g}</td><td class="n">${r.grank||'–'}</td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${ovCols.map(m=>`<td class="n">${r.mt[m]!=null?r.mt[m]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${dsel?'':`<td class="n"><span class="st ${r.qual?'q':'o'}">${r.qual?'QUALIFIED':'OUT'}</span></td>`}</tr>`).join('')+'</tbody></table>'; }
+const ovTsv=()=>['Rank','Team Name','Group','Group Rank','Chicken Dinner','Placement Point','Kill Point'].concat(ovCols.map(m=>'M'+m),['Total Point']).join('\t')+'\n'+ovRows.map(r=>[r.rank,r.team,r.g,r.grank||'',r.wwcd||'',r.place,r.kills].concat(ovCols.map(m=>r.mt[m]!=null?r.mt[m]:''),[r.total]).join('\t')).join('\n');
+function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='overall') renderOverall(); if(t==='stand') renderStand(); }
 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button'); if(!t) return;
@@ -819,13 +857,18 @@ $('draftTable').addEventListener('change',e=>{ const i=e.target.dataset.i; if(i=
 $('btnAddRow').onclick=()=>{ const s=+$('addMissing').value; if(!s) return; const used=draft.rows.map(r=>r.pos); let p=1; while(used.includes(p)) p++; draft.rows.push({pos:p,slot:s,kills:0,notes:[['w','Added manually']]}); renderDraft(); };
 $('btnSaveResult').onclick=saveResult;
 $('standGroup').onchange=e=>{ standG=+e.target.value; renderStand(); };
-$('standView').onchange=e=>{ viewM=+e.target.value; renderStand(); };
-$('pView').onchange=e=>{ viewM=+e.target.value; renderStand(); drawPoster(); };
+$('ovGroup').onchange=$('ovDay').onchange=renderOverall;
+$('btnOvTsv').onclick=async()=>{ await navigator.clipboard.writeText(ovTsv()); toast('Copied. Paste into Google Sheets'); };
+$('btnOvCsv').onclick=()=>{ const csv=ovTsv().split('\n').map(l=>l.split('\t').map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`round-${S.round}-overall.csv`; a.click(); };
+$('standView').onchange=e=>{ setView(e.target.value); renderStand(); };
+$('pView').onchange=e=>{ setView(e.target.value); renderStand(); drawPoster(); };
 $('dayNo').onchange=e=>{ curDay=+e.target.value; if(draft) draft.day=curDay; };
 $('btnLoadMatch').onclick=()=>{ const x=(S.mres[curG]||{})[curM]; if(!x) return; startDraft(x.rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); $('draftCard').scrollIntoView({behavior:'smooth'}); };
 $('syncPill').onclick=()=>{ if(S.cfg.apiUrl) syncNow(true); };
-$('sMatches').onchange=async e=>{ const n=Math.max(1,Math.min(30,Math.floor(+e.target.value)||1)); roundInfo(S.round).matches=n; if(!S.rounds.some(r=>r.id===S.round)) S.rounds.push(roundInfo(S.round)); save(); renderAll(); if(curG) renderMatchBar();
-  if(!S.cfg.apiUrl) return toast(`${roundInfo(S.round).name}: ${n} match${n>1?'es':''} per group`); try{ await api('saveRound',{matches:n}); toast(`${roundInfo(S.round).name}: ${n} match${n>1?'es':''} per group · saved to sheet ✔`); }catch(err){ toast('Saved here only. Sheet error: '+err.message,true); } };
+async function setFormat(o){ const ri=roundInfo(S.round); if(!S.rounds.some(r=>r.id===S.round)) S.rounds.push(ri); if(o.matches) ri.matches=o.matches; if(o.days) ri.days=o.days; save(); renderAll(); if(curG) renderMatchBar();
+  const txt=`${ri.name}: ${matchesN()} match${matchesN()>1?'es':''} · ${daysN()} day${daysN()>1?'s':''}`; if(!S.cfg.apiUrl) return toast(txt);
+  try{ await api('saveRound',o); toast(txt+' · saved to sheet ✔'); }catch(err){ toast('Saved here only. Sheet error: '+err.message,true); } }
+['sMatches','qMatches'].forEach(id=>$(id).onchange=e=>setFormat({matches:+e.target.value})); ['sDays','qDays'].forEach(id=>$(id).onchange=e=>setFormat({days:+e.target.value}));
 $('btnCopyTsv').onclick=async()=>{ await navigator.clipboard.writeText(tsv(viewRes(standG).rows,!viewM)); toast('Copied. Paste into Google Sheets'); };
 $('btnCsv').onclick=()=>{ const csv=tsv(viewRes(standG).rows,!viewM).split('\n').map(l=>l.split('\t').map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`round-${S.round}-group-${standG}-${viewTag()}.csv`; a.click(); };
 $('btnEdit').onclick=()=>{ const mm=S.mres[standG]||{}, ks=Object.keys(mm); const m=viewM||(ks.length===1?+ks[0]:0); if(!m) return toast('Choose one match in the “View” box first, then click Edit',true);
@@ -849,7 +892,7 @@ $('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoste
 $('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${standG}-${viewTag()}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
 $('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
 $('btnConnect').onclick=async()=>{ S.cfg.apiUrl=$('sUrl').value.trim(); S.cfg.key=$('sKey').value; save(); setPill(); if(!S.cfg.apiUrl){ renderSettings(); return toast('Disconnected'); }
-  try{ await pull(); }catch(e){ toast('Could not connect: '+e.message,true); } };
+  try{ await pull(); api('rebuild').catch(()=>{}); }catch(e){ toast('Could not connect: '+e.message,true); } };
 $('btnDemo').onclick=demoRoster;
 $('btnWipe').onclick=()=>{ if(confirm('Delete everything stored in this browser? (The sheet is not touched.)')){ localStorage.removeItem(LS); location.reload(); } };
 ['sSlotMin','sSlotMax'].forEach(id=>$(id).onchange=()=>{ const c=S.cfg; c.slotMin=+$('sSlotMin').value||5; c.slotMax=+$('sSlotMax').value||20; save(); toast('Settings saved'); });
@@ -862,7 +905,8 @@ $('btnSaveRules').onclick=async()=>{ const g=curRuleG(); const p=$('rPlace').val
 $('btnResetRules').onclick=async()=>{ const g=curRuleG(); delete S.rules[g]; save(); renderRules();
   if(!S.cfg.apiUrl) return toast('Reset'); try{ await api('deleteRules',{group:g}); toast('Reset to default ✔'); }catch(e){ toast('Reset here only. Sheet error: '+e.message,true); } };
 
-$('dayNo').innerHTML='<option value="0">No day</option>'+[1,2,3,4,5,6,7].map(d=>`<option value="${d}">Day ${d}</option>`).join('');
+const optN=(n,w)=>[...Array(n)].map((_,i)=>`<option value="${i+1}">${i+1} ${w}${i?'s':''}</option>`).join('');
+['qMatches','sMatches'].forEach(id=>$(id).innerHTML=optN(30,'match').replace(/match(s)/g,'matches').replace(/ matchs/g,' matches')); ['qDays','sDays'].forEach(id=>$(id).innerHTML=optN(10,'day'));
 renderAll();
 if(S.cfg.apiUrl) pull(true).catch(e=>toast('Sheet offline: using saved copy ('+e.message+')',true));
 </script>
