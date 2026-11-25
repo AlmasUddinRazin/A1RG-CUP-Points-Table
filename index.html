@@ -109,6 +109,7 @@ input[type=range]{padding:0;accent-color:var(--acc)}
 .flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 #syncPill{cursor:pointer}
+.mapRow{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:6px}.mapRow select{width:auto}
 .g.part::after{background:var(--acc)}.legend .l3::before{background:var(--acc)}
 .mbar{display:flex;gap:6px;flex-wrap:wrap}.mb{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 14px;font:700 16px var(--cond);letter-spacing:.06em;cursor:pointer;min-width:58px}.mb.on{background:var(--acc);color:#111;border-color:var(--acc)}.mb.ok:not(.on){border-color:var(--ok)}
 #themeBtn{background:none;border:1px solid var(--line);color:var(--text);border-radius:99px;padding:4px 12px;font:600 14px var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
@@ -146,6 +147,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <div class="card">
     <div class="row sp"><div><h3>Round format · <span id="fmtTitle"></span></h3><div class="note">Choose how many matches and days this round has. You can change it any time.</div></div>
       <div class="row"><label class="inl note">Matches per group <select id="qMatches" style="width:auto"></select></label><label class="inl note">Days <select id="qDays" style="width:auto"></select></label></div></div>
+    <div class="note" style="margin-top:12px" id="mapNote">Map of each match</div><div class="mapRow" id="mapRow"></div>
   </div>
   <div class="card">
     <div class="step"><i>1</i><div><h3>Pick the group</h3><div class="note">Click the group that is playing now.</div></div></div>
@@ -230,6 +232,8 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <h2>Poster</h2>
       <label class="f">Group No.</label><select id="pGroup"></select>
       <div id="pViewWrap"><label class="f">Show</label><select id="pView"></select></div>
+      <label class="f">Teams per page</label><select id="pPer"><option value="8">8 per page · 16 teams = 2 clean pages</option><option value="16">16 on one page (compact)</option></select>
+      <div id="pPageWrap" style="display:none"><label class="f">Page</label><select id="pPage"></select></div>
       <label class="f">Tournament name</label><input id="pName">
       <label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING">
       <label class="f inl"><input type="checkbox" id="pRound"> Show round name in sub-title</label>
@@ -249,7 +253,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <label class="f">Picture layout</label>
       <select id="pMode"><option value="auto">Auto</option><option value="full">Full background</option><option value="cutout">Right-side cutout</option><option value="half">Right half (faded)</option></select>
       <label class="f">Picture dimming</label><input type="range" id="pDim" min="0" max="90">
-      <div class="row" style="margin-top:14px"><button class="btn" id="btnDl">Download PNG</button><button class="btn ghost" id="btnCopyImg">Copy image</button></div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="btnDl">Download PNG</button><button class="btn ghost" id="btnDlAll" style="display:none">Download all pages</button><button class="btn ghost" id="btnCopyImg">Copy image</button></div>
       <p class="note" id="pNote"></p>
     </div>
     <div><canvas id="cv" width="1920" height="1080"></canvas></div>
@@ -336,6 +340,12 @@ const bundle = r => { const b=S.rd[r]||(S.rd[r]={roster:[],lobby:{},results:{},r
 function bind(r){ S.round=r; const b=bundle(r); S.roster=b.roster; S.lobby=b.lobby; S.results=b.results; S.mres=b.mres; S.rules=b.rules; }
 const roundInfo = r => S.rounds.find(x=>x.id===r)||{id:r,name:'Round '+r,prefillNeedsEmail:false};
 const matchesN = () => Math.max(1,Math.min(30,+roundInfo(S.round).matches||1));
+const MAPS=['Erangel','Miramar','Rondo'];
+const mapOf = m => ((roundInfo(S.round).maps||[])[m-1])||'';
+const mapText = ms => { const l=ms.map(mapOf).filter(Boolean); return !l.length?'':(l.length>6?l.map(x=>x[0]).join('/'):l.join(' / ')); };
+const mh = m => 'M'+m+(mapOf(m)?'·'+mapOf(m)[0]:'');
+let pageIdx=0, pageKey='';
+const pageCount = () => { const r=standG!=null?viewRes(standG):null; return r?Math.max(1,Math.ceil(r.rows.length/(+S.cfg.perPage||8))):1; };
 const daysN = () => Math.max(1,Math.min(14,+roundInfo(S.round).days||1));
 if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
 bind(S.round);
@@ -452,8 +462,8 @@ function canon(v){ const t=grp(curG).teams.find(t=>norm(t.name)===norm(v)); retu
 function lobbyPayloadFor(g){ return lobbyTeams(g).map(t=>({slot:t.slot,name:t.name,email:t.email})); }
 function lobbyPayload(){ return lobbyTeams(curG).map(t=>({slot:t.slot,name:t.name,email:t.email})); }
 function renderMatchBar(){ if(!curG) return; const N=matchesN(), mm=S.mres[curG]||{}; if(curM>N) curM=N;
-  $('mTitle').textContent='Group '+curG+' · Match '+curM+' of '+N;
-  $('matchBar').innerHTML=[...Array(N)].map((_,i)=>{ const m=i+1; return `<button class="mb ${m===curM?'on':''} ${mm[m]?'ok':''}" data-m="${m}" title="${mm[m]?'Result saved'+(mm[m].day?' · Day '+mm[m].day:''):'No result yet'}">M${m}${mm[m]?' ✔':''}</button>`; }).join('');
+  $('mTitle').textContent='Group '+curG+' · Match '+curM+' of '+N+(mapOf(curM)?' · '+mapOf(curM):'');
+  $('matchBar').innerHTML=[...Array(N)].map((_,i)=>{ const m=i+1; return `<button class="mb ${m===curM?'on':''} ${mm[m]?'ok':''}" data-m="${m}" title="${mm[m]?'Result saved'+(mm[m].day?' · Day '+mm[m].day:''):'No result yet'}${mapOf(m)?' · '+mapOf(m):''}">${mh(m)}${mm[m]?' ✔':''}</button>`; }).join('');
   let mx=Math.max(daysN(),curDay); Object.keys(S.mres).forEach(g=>Object.values(S.mres[g]).forEach(m=>{ mx=Math.max(mx,m.day||0); }));
   $('dayNo').innerHTML=(curDay===0?'<option value="0">No day</option>':'')+[...Array(mx)].map((_,i)=>`<option value="${i+1}">Day ${i+1}</option>`).join(''); $('dayNo').value=String(curDay);
   $('matchNote').textContent=mm[curM]?`Match ${curM} is already saved. A new table replaces it, or open the saved one to fix it.`:(N>1?'Pick the match you are entering. Every match is saved separately; the group overall is their sum.':'Pick the day of this match (optional).');
@@ -471,7 +481,7 @@ function updatePromptInfo(){ const n=lobbyTeams(curG).length; $('promptInfo').te
 function buildPrompt(g){
   const lt=lobbyTeams(g), c=S.cfg, R=rulesFor(g), P=R.placement;
   const ptsTxt = P.map((p,i)=>`#${i+1}: ${p}`).join(', ')+`, #${P.length+1} and below: 0`;
-  return `You are an expert PUBG Mobile tournament result processor for ${c.tournament} (${roundInfo(S.round).name}). Extract, calculate and format ONE match (${roundInfo(S.round).name}, Group ${g}, Match ${curM} of ${matchesN()}${curDay?`, Day ${curDay}`:''}) from screenshots into a sheet-ready table.
+  return `You are an expert PUBG Mobile tournament result processor for ${c.tournament} (${roundInfo(S.round).name}). Extract, calculate and format ONE match (${roundInfo(S.round).name}, Group ${g}, Match ${curM} of ${matchesN()}${curDay?`, Day ${curDay}`:''}${mapOf(curM)?`, Map ${mapOf(curM)}`:''}) from screenshots into a sheet-ready table.
 
 LOBBY (authoritative slot → team; teams sit on slots ${c.slotMin}–${c.slotMax}):
 Slot\tTeam Name\tTeam Email
@@ -594,10 +604,13 @@ function standOptions(){ const done=Object.keys(S.results).map(Number).sort((a,b
   const N=matchesN(), mm=S.mres[standG]||{}, ks=Object.keys(mm).map(Number).sort((a,b)=>a-b); if(!mm[viewM]) viewM=0;
   const dset={}; ks.forEach(k=>{ const d=mm[k].day||0; if(d) (dset[d]=dset[d]||[]).push(k); }); const ds=Object.keys(dset).map(Number).sort((a,b)=>a-b); if(!dset[viewD]) viewD=0;
   const opts=`<option value="0">Overall standing${N>1?` · after ${ks.length}/${N} matches`:''}</option>`+
-    ds.map(d=>`<option value="d${d}">Day ${d} standing · ${dset[d].length>1?'M'+dset[d][0]+'–M'+dset[d][dset[d].length-1]:'M'+dset[d][0]}</option>`).join('')+
-    ks.map(m=>`<option value="m${m}">Match ${m}${mm[m].day?' · Day '+mm[m].day:''}</option>`).join('');
+    ds.map(d=>`<option value="d${d}">Day ${d} standing · ${dset[d].length>1?'M'+dset[d][0]+'–M'+dset[d][dset[d].length-1]:'M'+dset[d][0]}${mapText(dset[d])?' · '+mapText(dset[d]):''}</option>`).join('')+
+    ks.map(m=>`<option value="m${m}">Match ${m}${mm[m].day?' · Day '+mm[m].day:''}${mapOf(m)?' · '+mapOf(m):''}</option>`).join('');
   const cur=viewM?'m'+viewM:(viewD?'d'+viewD:'0'); $('standView').innerHTML=opts; $('pView').innerHTML=opts; $('standView').value=$('pView').value=cur;
-  const show=N>1||ks.length>1||ds.length>0; $('standView').style.display=show?'':'none'; $('pViewWrap').style.display=show?'':'none'; }
+  const show=N>1||ks.length>1||ds.length>0; $('standView').style.display=show?'':'none'; $('pViewWrap').style.display=show?'':'none';
+  const key=standG+'|'+viewM+'|'+viewD; if(key!==pageKey){ pageKey=key; pageIdx=0; }
+  const rr=standG!=null?viewRes(standG):null, per=+S.cfg.perPage||8, pc=pageCount(); if(pageIdx>=pc) pageIdx=0;
+  $('pPage').innerHTML=Array.from({length:pc},(_,i)=>`<option value="${i}">Page ${i+1} · teams ${i*per+1}–${Math.min((i+1)*per,rr?rr.rows.length:0)}</option>`).join(''); $('pPage').value=String(pageIdx); $('pPageWrap').style.display=pc>1?'':'none'; $('btnDlAll').style.display=pc>1?'':'none'; }
 function setView(v){ viewM=v[0]==='m'?+v.slice(1):0; viewD=v[0]==='d'?+v.slice(1):0; }
 function viewRes(g){ const mm=S.mres[g]||{}, x=mm[viewM];
   if(viewM&&x) return {kind:'match',rows:x.rows.slice().sort((a,b)=>a.rank-b.rank),qualify:qualifyFor(g),savedAt:x.savedAt,day:x.day,match:viewM,ms:[viewM]};
@@ -605,14 +618,14 @@ function viewRes(g){ const mm=S.mres[g]||{}, x=mm[viewM];
   const o=S.results[g]; return o?Object.assign({kind:'overall',ms:Object.keys(mm).map(Number).sort((a,b)=>a-b)},o):o; }
 const maxMatch=g=>Math.max(0,...Object.keys(S.mres[g]||{}).map(Number));
 function standTable(rows,g,kind,ms){ const q=qualifyFor(g), isMatch=kind==='match', ml=(!isMatch&&ms&&ms.length>1)?ms:[];
-  return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ml.map(m=>`<th class="n">M${m}</th>`).join('')}<th class="n">Total</th>${kind==='overall'?'<th class="n">Status</th>':''}</tr></thead><tbody>`+
+  return `<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ml.map(m=>`<th class="n">${mh(m)}</th>`).join('')}<th class="n">Total</th>${kind==='overall'?'<th class="n">Status</th>':''}</tr></thead><tbody>`+
   rows.map(r=>`<tr class="${kind==='overall'?(r.rank<=q?'q':'out'):''}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${ml.map(m=>`<td class="n">${r.mt&&r.mt[m]!=null?r.mt[m]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${kind==='overall'?`<td class="n"><span class="st ${r.rank<=q?'q':'o'}">${r.rank<=q?'QUALIFIED':'OUT'}</span></td>`:''}</tr>`).join('')+`</tbody></table>`; }
 let qTimer;
 function setQualify(g,v){ const n=Math.floor(+v); if(!(n>=1)||!S.mres[g]) return; Object.values(S.mres[g]).forEach(x=>x.qualify=Math.min(n,99)); recompute(bundle(S.round)); save(); renderStand(); if(document.querySelector('#poster.on')) drawPoster();
   const rd=S.round, q=S.results[g].qualify; clearTimeout(qTimer); qTimer=setTimeout(async()=>{ if(!S.cfg.apiUrl||rd!==S.round) return; try{ await api('saveQualify',{round:rd,group:g,qualify:q}); toast(`Group ${g}: top ${q} qualify · sheet updated ✔`); }catch(e){ toast('Saved here only. Sheet error: '+e.message,true); } },800); }
 function renderStand(){
   standOptions(); const r=viewRes(standG), N=matchesN();
-  const note=!r?'':(r.kind==='match'?`Match ${r.match} of ${N}${r.day?' · Day '+r.day:''} · this match only`:r.kind==='day'?`Day ${r.day} · sum of ${r.ms.length} match${r.ms.length>1?'es':''} played that day (M${r.ms.join(', M')}) · no qualify marks`:(N>1?`Overall = sum of ${r.played} match${r.played>1?'es':''}${r.played<N?` so far (of ${N})`:''}`:''));
+  const note=!r?'':(r.kind==='match'?`Match ${r.match} of ${N}${r.day?' · Day '+r.day:''}${mapOf(r.match)?' · '+mapOf(r.match):''} · this match only`:r.kind==='day'?`Day ${r.day} · sum of ${r.ms.length} match${r.ms.length>1?'es':''} played that day (M${r.ms.join(', M')})${mapText(r.ms)?' · '+mapText(r.ms):''} · no qualify marks`:(N>1?`Overall = sum of ${r.played} match${r.played>1?'es':''}${r.played<N?` so far (of ${N})`:''}`:''));
   $('standBox').innerHTML = r? (note?`<div class="note" style="margin-bottom:8px">${note}</div>`:'')+standTable(r.rows,standG,r.kind,r.ms) : '<div class="empty">No result saved yet. Do a match in <b>Match Desk</b>.</div>';
   ['btnCopyTsv','btnCsv','btnEdit','btnToPoster','sQualG','pQual'].forEach(i=>$(i).disabled=!r);
   ['sQualG','pQual'].forEach(i=>{ if(document.activeElement!==$(i)) $(i).value=r?qualifyFor(standG):''; });
@@ -709,14 +722,19 @@ async function drawPoster(){
   x.fillStyle=ink(acc); x.textAlign='center'; x.font='700 32px "Barlow Condensed"'; x.letterSpacing='10px'; x.fillText('GROUP',bx+bw/2+6,by+54); x.letterSpacing='0px';
   x.font='400 104px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+168); x.textAlign='left';
   if(logoImg){ const mw=300, mh=84, k=Math.min(mw/logoImg.width,mh/logoImg.height), lw=logoImg.width*k, lh=logoImg.height*k; x.drawImage(logoImg,W-60-lw,26+(mh-lh)/2,lw,lh); }
-  // table
-  const rows=res.rows, n=rows.length, cols=n>6?2:1, perCol=Math.ceil(n/cols), top=330, bottom=985;
-  const colW=cols===2?676:940, gap=20, x0=48, hdrH=40, rowGap=7;
+  // table (8 per page = one wide, airy column; 16 per page = old two-column layout)
+  const per=+S.cfg.perPage||8, allRows=res.rows, pages=Math.max(1,Math.ceil(allRows.length/per)); if(pageIdx>=pages) pageIdx=0;
+  const rows=allRows.slice(pageIdx*per,(pageIdx+1)*per), n=rows.length, wide=per<=8, cols=wide?1:(n>6?2:1), perCol=Math.ceil(n/cols), top=330, bottom=985;
+  const mcol=(wide&&res.kind!=='match'&&res.ms&&res.ms.length>1&&res.ms.length<=5)?res.ms:[];
+  const colW=wide?1784:(cols===2?676:940), gap=20, x0=wide?68:48, hdrH=40, rowGap=wide?9:7;
   const rowH=Math.min(100,Math.floor((bottom-top-hdrH-rowGap*perCol)/perCol));
+  if(pages>1){ x.fillStyle=T.accTxt; x.font='700 28px "Barlow Condensed"'; x.letterSpacing='4px'; x.fillText(`TEAMS ${pageIdx*per+1}–${pageIdx*per+n} OF ${allRows.length}   ·   PAGE ${pageIdx+1} / ${pages}`,70,306); x.letterSpacing='0px'; }
   for(let c=0;c<cols;c++){
-    const cx=x0+c*(colW+gap), px={wwcd:cx+colW-292,place:cx+colW-228,elim:cx+colW-165,tot:cx+colW-62};
+    const cx=x0+c*(colW+gap), px=wide?{tot:cx+colW-100,elim:cx+colW-300,place:cx+colW-440,wwcd:cx+colW-580}:{wwcd:cx+colW-292,place:cx+colW-228,elim:cx+colW-165,tot:cx+colW-62};
+    const mx=mcol.map((m,k)=>px.wwcd-190-(mcol.length-1-k)*104), nameR=(mcol.length?mx[0]-56:px.wwcd-30);
     x.fillStyle=T.sub; x.font='600 18px "Barlow Condensed"'; x.letterSpacing='1px'; x.textAlign='center'; x.textBaseline='alphabetic';
     x.fillText('#',cx+40,top+26); x.textAlign='left'; x.fillText('TEAM',cx+92,top+26); x.textAlign='center';
+    mcol.forEach((m,k)=>x.fillText(mh(m),mx[k],top+26));
     x.fillText('WWCD',px.wwcd,top+26); x.fillText('PLACE',px.place,top+26); x.fillText('ELIMS',px.elim,top+26); x.fillText('TOTAL',px.tot,top+26); x.letterSpacing='0px';
     rows.slice(c*perCol,(c+1)*perCol).forEach((r,i)=>{
       const y=top+hdrH+i*(rowH+rowGap), q=r.rank<=qn, cyy=y+rowH/2;
@@ -724,21 +742,22 @@ async function drawPoster(){
       const bar=sb?(q?'#22c55e':'#ef4444'):(q?acc:null); if(bar){ x.fillStyle=bar; x.fillRect(cx,y,9,rowH); } x.restore();
       x.textBaseline='middle'; x.textAlign='center';
       const medal=dark?['#ffd34d','#dfe5ef','#e8a066']:['#b07d00','#5b6475','#a2591f'];
-      x.fillStyle=r.rank<=3?medal[r.rank-1]:T.txt; x.font=`400 ${Math.min(46,rowH*.52)}px Anton`; x.fillText(String(r.rank),cx+42,cyy+2);
-      x.textAlign='left'; x.fillStyle=T.txt; const fs=fitText(x,r.team.toUpperCase(),px.wwcd-30-(cx+92),Math.min(40,rowH*.46),{w:'700',f:'"Barlow Condensed"'});
+      x.fillStyle=r.rank<=3?medal[r.rank-1]:T.txt; x.font=`400 ${Math.min(wide?54:46,rowH*(wide?.6:.52))}px Anton`; x.fillText(String(r.rank),cx+42,cyy+2);
+      x.textAlign='left'; x.fillStyle=T.txt; const fs=fitText(x,r.team.toUpperCase(),nameR-(cx+92),Math.min(wide?48:40,rowH*(wide?.58:.46)),{w:'700',f:'"Barlow Condensed"'});
       x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+92,cyy+1);
-      x.textAlign='center'; x.font=`600 ${Math.min(34,rowH*.38)}px "Barlow Condensed"`;
+      x.textAlign='center'; x.font=`600 ${Math.min(wide?40:34,rowH*(wide?.52:.38))}px "Barlow Condensed"`;
+      x.fillStyle=T.sub; mcol.forEach((m,k)=>x.fillText(String(r.mt&&r.mt[m]!=null?r.mt[m]:'–'),mx[k],cyy+2));
       x.fillStyle=r.wwcd?T.accTxt:T.sub; x.fillText(String(r.wwcd||0),px.wwcd,cyy+2);
       x.fillStyle=T.txt; x.fillText(String(r.place),px.place,cyy+2); x.fillText(String(r.kills),px.elim,cyy+2);
-      const pw=94, ph=Math.round(rowH*.7); rrPath(x,px.tot-pw/2,cyy-ph/2,pw,ph,9); x.fillStyle=q?acc:T.chip; x.fill();
-      x.fillStyle=q?ink(acc):T.txt; x.font=`700 ${Math.min(46,ph*.74)}px "Barlow Condensed"`; x.fillText(String(r.total),px.tot,cyy+2);
+      const pw=wide?118:94, ph=Math.round(rowH*.7); rrPath(x,px.tot-pw/2,cyy-ph/2,pw,ph,9); x.fillStyle=q?acc:T.chip; x.fill();
+      x.fillStyle=q?ink(acc):T.txt; x.font=`700 ${Math.min(wide?54:46,ph*.74)}px "Barlow Condensed"`; x.fillText(String(r.total),px.tot,cyy+2);
     });
   }
   // footer
   x.textBaseline='alphabetic'; x.textAlign='left';
   const foot=matchView?'':(S.cfg.footer||'').replace(/\{n\}/g,qn).trim();
   if(foot){ x.fillStyle=sb?'#22c55e':acc; x.fillRect(62,1021,20,20); x.fillStyle=T.txt; x.font='600 26px "Barlow Condensed"'; x.letterSpacing='3px'; x.fillText(foot.toUpperCase(),96,1040); }
-  const when=[info?.date,fmtTime(info?.time),info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.font='600 22px "Barlow Condensed"'; x.letterSpacing='3px'; x.textAlign='right'; x.fillStyle=T.sub; x.fillText(when,W-60,1012);
+  const mapTxt=res.kind==='match'?mapOf(res.match):mapText(res.kind==='day'?res.ms:Array.from({length:N},(_,i)=>i+1)); const when=[info?.date,fmtTime(info?.time),mapTxt||info?.map].filter(Boolean).join('  ·  ').toUpperCase(); x.font='600 22px "Barlow Condensed"'; x.letterSpacing='3px'; x.textAlign='right'; x.fillStyle=T.sub; x.fillText(when,W-60,1012);
   const cr=(S.cfg.credit||'').trim(); if(cr){ x.font='700 28px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),W-60,1046); }
   x.letterSpacing='0px'; x.textAlign='left';
 }
@@ -751,7 +770,7 @@ function demoRoster(){
     teams:names.map((nm,i)=>({slot:i+5,name:`${nm} Esports G${n}`,email:i<12?`${nm.toLowerCase()}${n}@example.com`:''}))}));
   save(); renderAll(); toast('Demo roster loaded (fake teams)');
 }
-function renderSettings(){ const c=S.cfg; ['sMatches','qMatches'].forEach(i=>$(i).value=String(matchesN())); ['sDays','qDays'].forEach(i=>$(i).value=String(daysN())); $('fmtTitle').textContent=roundInfo(S.round).name; $('fmtLabel').textContent='Matches per group · '+roundInfo(S.round).name; $('fmtNote').textContent=matchesN()>1?'Each group enters '+matchesN()+' separate results (Match Desk → M1, M2 …) and gets an overall standing. Individual matches and the overall can each be downloaded as a poster.':'One match per group. Raise this number for rounds where groups play several matches.'; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
+function renderSettings(){ const c=S.cfg; ['sMatches','qMatches'].forEach(i=>$(i).value=String(matchesN())); ['sDays','qDays'].forEach(i=>$(i).value=String(daysN())); $('fmtTitle').textContent=roundInfo(S.round).name; renderMapRow(); $('fmtLabel').textContent='Matches per group · '+roundInfo(S.round).name; $('fmtNote').textContent=matchesN()>1?'Each group enters '+matchesN()+' separate results (Match Desk → M1, M2 …) and gets an overall standing. Individual matches and the overall can each be downloaded as a poster.':'One match per group. Raise this number for rounds where groups play several matches.'; $('sUrl').value=c.apiUrl; $('sKey').value=c.key; $('sSlotMin').value=c.slotMin; $('sSlotMax').value=c.slotMax;
   ['sSlotMin','sSlotMax'].forEach(i=>$(i).disabled=!!c.apiUrl);
   $('sNote').textContent=c.apiUrl?'Connected. Slot range comes from Code.gs; scoring rules below are saved to the sheet.':'Not connected: data lives only in this browser.'; renderRules(); }
 function curRuleG(){ return +$('rGroup').value||0; }
@@ -759,7 +778,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -802,7 +821,7 @@ function renderOverall(){ const N=matchesN(), gs=Object.keys(S.mres).map(Number)
   ['btnOvTsv','btnOvCsv'].forEach(i=>$(i).disabled=!o); if(!o){ ovRows=[]; $('ovBox').innerHTML='<div class="empty">No results yet for this selection.</div>'; return; }
   const ml=Object.keys(pooled).map(Number).sort((a,b)=>a-b), showM=ml.length>1; ovCols=showM?ml:[];
   ovRows=o.rows.map(r=>{ const g=who[norm(r.team)], gr=(S.results[g]&&S.results[g].rows.find(x=>norm(x.team)===norm(r.team)))||{}; return Object.assign({},r,{g,grank:gr.rank,qual:gr.rank&&gr.rank<=qualifyFor(g)}); });
-  $('ovBox').innerHTML=`<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">Group</th><th class="n">Grp #</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ovCols.map(m=>`<th class="n">M${m}</th>`).join('')}<th class="n">Total</th>${dsel?'':'<th class="n">Status</th>'}</tr></thead><tbody>`+
+  $('ovBox').innerHTML=`<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">Group</th><th class="n">Grp #</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ovCols.map(m=>`<th class="n">${mh(m)}</th>`).join('')}<th class="n">Total</th>${dsel?'':'<th class="n">Status</th>'}</tr></thead><tbody>`+
    ovRows.map(r=>`<tr class="${dsel?'':(r.qual?'q':'out')}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.g}</td><td class="n">${r.grank||'–'}</td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${ovCols.map(m=>`<td class="n">${r.mt[m]!=null?r.mt[m]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${dsel?'':`<td class="n"><span class="st ${r.qual?'q':'o'}">${r.qual?'QUALIFIED':'OUT'}</span></td>`}</tr>`).join('')+'</tbody></table>'; }
 const ovTsv=()=>['Rank','Team Name','Group','Group Rank','Chicken Dinner','Placement Point','Kill Point'].concat(ovCols.map(m=>'M'+m),['Total Point']).join('\t')+'\n'+ovRows.map(r=>[r.rank,r.team,r.g,r.grank||'',r.wwcd||'',r.place,r.kills].concat(ovCols.map(m=>r.mt[m]!=null?r.mt[m]:''),[r.total]).join('\t')).join('\n');
 function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='overall') renderOverall(); if(t==='stand') renderStand(); }
@@ -865,8 +884,12 @@ $('pView').onchange=e=>{ setView(e.target.value); renderStand(); drawPoster(); }
 $('dayNo').onchange=e=>{ curDay=+e.target.value; if(draft) draft.day=curDay; };
 $('btnLoadMatch').onclick=()=>{ const x=(S.mres[curG]||{})[curM]; if(!x) return; startDraft(x.rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); $('draftCard').scrollIntoView({behavior:'smooth'}); };
 $('syncPill').onclick=()=>{ if(S.cfg.apiUrl) syncNow(true); };
-async function setFormat(o){ const ri=roundInfo(S.round); if(!S.rounds.some(r=>r.id===S.round)) S.rounds.push(ri); if(o.matches) ri.matches=o.matches; if(o.days) ri.days=o.days; save(); renderAll(); if(curG) renderMatchBar();
-  const txt=`${ri.name}: ${matchesN()} match${matchesN()>1?'es':''} · ${daysN()} day${daysN()>1?'s':''}`; if(!S.cfg.apiUrl) return toast(txt);
+function renderMapRow(){ const N=matchesN(), ms=roundInfo(S.round).maps||[]; $('mapNote').textContent=N>1?'Map of each match (e.g. Erangel → Miramar → Rondo). It is written into the sheet and shown on results and posters.':'Map of this match. It is written into the sheet and shown on the poster.';
+  $('mapRow').innerHTML=[...Array(N)].map((_,i)=>{ const v=ms[i]||'', opts=MAPS.includes(v)||!v?MAPS:MAPS.concat(v); return `<label class="inl note">${N>1?'M'+(i+1):'Map'} <select data-map="${i}"><option value="">—</option>${opts.map(m=>`<option ${m===v?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`; }).join(''); }
+$('mapRow').onchange=()=>{ const N=matchesN(); setFormat({maps:[...document.querySelectorAll('#mapRow select')].map(e=>e.value).slice(0,N)}); };
+async function setFormat(o){ const ri=roundInfo(S.round); if(!S.rounds.some(r=>r.id===S.round)) S.rounds.push(ri); if(o.matches) ri.matches=o.matches; if(o.days) ri.days=o.days;
+  if(o.matches){ ri.maps=(ri.maps||[]).slice(0,o.matches); while(ri.maps.length<o.matches) ri.maps.push(''); o.maps=ri.maps.slice(); } else if(o.maps) ri.maps=o.maps; save(); renderAll(); if(curG) renderMatchBar();
+  const txt=`${ri.name}: ${matchesN()} match${matchesN()>1?'es':''} · ${daysN()} day${daysN()>1?'s':''}${mapText(Array.from({length:matchesN()},(_,i)=>i+1))?' · '+mapText(Array.from({length:matchesN()},(_,i)=>i+1)):''}`; if(!S.cfg.apiUrl) return toast(txt);
   try{ await api('saveRound',o); toast(txt+' · saved to sheet ✔'); }catch(err){ toast('Saved here only. Sheet error: '+err.message,true); } }
 ['sMatches','qMatches'].forEach(id=>$(id).onchange=e=>setFormat({matches:+e.target.value})); ['sDays','qDays'].forEach(id=>$(id).onchange=e=>setFormat({days:+e.target.value}));
 $('btnCopyTsv').onclick=async()=>{ await navigator.clipboard.writeText(tsv(viewRes(standG).rows,!viewM)); toast('Copied. Paste into Google Sheets'); };
@@ -874,7 +897,9 @@ $('btnCsv').onclick=()=>{ const csv=tsv(viewRes(standG).rows,!viewM).split('\n')
 $('btnEdit').onclick=()=>{ const mm=S.mres[standG]||{}, ks=Object.keys(mm); const m=viewM||(ks.length===1?+ks[0]:0); if(!m) return toast('Choose one match in the “View” box first, then click Edit',true);
   tab('desk'); selectGroup(standG); curM=m; curDay=defaultDay(standG,m); renderMatchBar(); startDraft(mm[m].rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); };
 $('btnToPoster').onclick=()=>tab('poster');
-$('pGroup').onchange=e=>{ standG=+e.target.value; drawPoster(); };
+$('pGroup').onchange=e=>{ standG=+e.target.value; renderStand(); drawPoster(); };
+$('pPer').onchange=e=>{ S.cfg.perPage=+e.target.value; pageIdx=0; save(); renderStand(); drawPoster(); };
+$('pPage').onchange=e=>{ pageIdx=+e.target.value; drawPoster(); };
 $('pName').oninput=e=>{ S.cfg.tournament=e.target.value; save(); $('brandName').textContent=S.cfg.tournament; drawPoster(); };
 $('pSub').oninput=e=>{ S.cfg.sub=e.target.value; save(); drawPoster(); };
 $('pImg').onchange=e=>{ S.cfg.img=e.target.value; save(); $('pImgUrl').style.display=e.target.value==='u'?'block':'none'; drawPoster(); };
@@ -889,7 +914,10 @@ $('pQual').oninput=e=>setQualify(standG,e.target.value);
 $('sQualG').oninput=e=>setQualify(standG,e.target.value);
 $('dQual').oninput=e=>{ const n=Math.floor(+e.target.value); if(draft&&n>=1){ draft.qualify=Math.min(n,99); renderDraft(); } };
 $('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoster(); };
-$('btnDl').onclick=async()=>{ try{ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${standG}-${viewTag()}.png`; a.click(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
+const pgTag=()=>pageCount()>1?`-p${pageIdx+1}`:'';
+async function dlCurrent(){ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${standG}-${viewTag()}${pgTag()}.png`; a.click(); }
+$('btnDl').onclick=async()=>{ try{ await dlCurrent(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
+$('btnDlAll').onclick=async()=>{ const keep=pageIdx, pc=pageCount(); try{ for(let i=0;i<pc;i++){ pageIdx=i; await drawPoster(); await dlCurrent(); await new Promise(r=>setTimeout(r,450)); } toast(`${pc} pages downloaded`); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } pageIdx=keep; $('pPage').value=String(keep); drawPoster(); };
 $('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
 $('btnConnect').onclick=async()=>{ S.cfg.apiUrl=$('sUrl').value.trim(); S.cfg.key=$('sKey').value; save(); setPill(); if(!S.cfg.apiUrl){ renderSettings(); return toast('Disconnected'); }
   try{ await pull(); api('rebuild').catch(()=>{}); }catch(e){ toast('Could not connect: '+e.message,true); } };
