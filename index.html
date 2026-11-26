@@ -269,6 +269,15 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <label class="f">Team photo</label><select id="pPhoto"></select>
         <label class="f">Photo type</label><select id="pHeroMode"><option value="squad">One squad photo (file in Team Photos)</option><option value="players">Individual players (folder per team)</option></select>
         <div id="pPlayers" style="margin-top:4px"></div>
+        <label class="f">Photo frames</label><select id="pHeroStyle"><option value="cards">Equal photo cards (for pictures with a background)</option><option value="cutout">Cut-outs side by side (transparent PNG)</option></select>
+        <label class="f inl"><input type="checkbox" id="pEditPh"> Edit positions: drag a player on the poster · mouse wheel = zoom</label>
+        <div id="phCtl" style="display:none;margin-top:6px">
+          <div class="note">Selected: <b id="phName">click a player on the poster</b></div>
+          <label class="f">Size</label><input type="range" id="phS" min="0.4" max="3" step="0.01">
+          <label class="f">Left / right</label><input type="range" id="phX" min="-1" max="1" step="0.01">
+          <label class="f">Up / down</label><input type="range" id="phY" min="-1" max="1" step="0.01">
+          <div class="chips"><button class="mc" id="phL">◀ Earlier</button><button class="mc" id="phR">Later ▶</button><button class="mc" id="phReset">Reset this player</button><button class="mc" id="phResetAll">Reset all</button></div>
+        </div>
         <div class="note" id="pPhotoStat"></div>
         <button class="btn ghost" id="btnPhotoRefresh" style="margin-top:6px">Refresh photo list from Drive</button>
       </div>
@@ -301,7 +310,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <div class="row" style="margin-top:14px"><button class="btn" id="btnDl">Download PNG</button><button class="btn ghost" id="btnDlAll" style="display:none">Download all pages</button><button class="btn ghost" id="btnCopyImg">Copy image</button></div>
       <p class="note" id="pNote"></p>
     </div>
-    <div><canvas id="cv" width="1920" height="1080"></canvas></div>
+    <div style="position:relative"><canvas id="cv" width="1920" height="1080"></canvas><div id="phSel" style="display:none;position:absolute;pointer-events:none;border:3px solid #22d3ee;box-shadow:0 0 0 2px rgba(0,0,0,.5),0 0 18px #22d3ee;border-radius:3px"></div></div>
   </div>
 </section>
 
@@ -968,8 +977,8 @@ async function drawCastPoster(){
   if(res){ const sorted=res.rows.slice().sort((a,b)=>a.rank-b.rank); fillPhotoSel(sorted); const sel=S.cfg.photoSel||'auto';
     heroName=sel==='none'?null:(sel==='auto'?sorted[0]?.team:sel); heroRow=sorted.find(r=>norm(r.team)===norm(heroName))||sorted[0];
     if(heroName&&S.cfg.hero!==false){
-      if(S.cfg.heroMode==='players'){ plist=await teamPlayers(heroName); if(my!==drawing) return; const pk=(S.cfg.pick||{})[norm(heroName)]; psel=(pk?plist.filter(n=>pk.includes(n)):plist.slice(0,5)).slice(0,6);
-        pimgs=(await Promise.all(psel.map(n=>teamPhoto(heroName,'player',n)))).filter(Boolean); fillPlayerBox(heroName,plist,psel); }
+      if(S.cfg.heroMode==='players'){ plist=await teamPlayers(heroName); if(my!==drawing) return; const pk=(S.cfg.pick||{})[norm(heroName)]; psel=(pk?pk.filter(n=>plist.includes(n)):plist.slice(0,5)).slice(0,6);
+        pimgs=(await Promise.all(psel.map(async n=>({name:n,img:await teamPhoto(heroName,'player',n)})))).filter(p=>p.img); curPsel=pimgs.map(p=>p.name); fillPlayerBox(heroName,plist,psel); }
       else{ photo=await teamPhoto(heroName,'photo'); fillPlayerBox('',[],[]); }
       logo=await teamPhoto(heroName,'logo'); if(my!==drawing) return; } }
   $('pNote').textContent=posterImgUrl()&&!img?'Background picture could not be loaded. Drawing without it.':'';
@@ -999,8 +1008,13 @@ async function drawCastPoster(){
   if(hero){
   x.save(); rrPath(x,hx,hy,hw,hh,6); x.fillStyle=T.panel; x.fill(); x.lineWidth=2; x.strokeStyle=hexA(acc,.7); x.stroke(); x.clip();
   x.save(); x.beginPath(); x.moveTo(hx,hy); x.lineTo(hx+pw,hy); x.lineTo(hx+pw-44,hy+hh); x.lineTo(hx,hy+hh); x.closePath(); x.clip();
-  if(pimgs.length){ const n=pimgs.length, cell=(pw-60)/n, order=[...Array(n).keys()].sort((a,b)=>Math.abs(b-(n-1)/2)-Math.abs(a-(n-1)/2));
-    order.forEach(i=>{ const im=pimgs[i], r=Math.min(cell*1.5/im.width,hh*1.08/im.height), w=im.width*r, h=im.height*r, cx=hx+30+cell*(i+.5)-8; x.drawImage(im,cx-w/2,hy+hh-h,w,h); });
+  phBoxes=[];
+  if(pimgs.length){ const n=pimgs.length, zw=pw-44, cw=zw/n, adjAll=(S.cfg.adj||{})[norm(heroName)]||{}, cards=(S.cfg.heroStyle||'cards')==='cards', ad=p=>Object.assign({dx:0,dy:0,s:1},adjAll[norm(p.name)]);
+    if(cards){ pimgs.forEach((p,i)=>{ const a=ad(p), im=p.img, c0=hx+i*cw, r=Math.max(cw/im.width,hh/im.height)*a.s, w=im.width*r, h=im.height*r;
+        x.save(); x.beginPath(); x.rect(c0+1,hy,cw-2,hh); x.clip(); x.fillStyle=dark?'#141a3a':'#dfe6f2'; x.fillRect(c0,hy,cw,hh); x.drawImage(im,c0+(cw-w)/2+a.dx*cw,hy+a.dy*hh,w,h); x.restore();
+        phBoxes.push({name:p.name,x:c0,y:hy,w:cw,h:hh,cw,hh}); }); }
+    else{ const order=[...Array(n).keys()].sort((a,b)=>Math.abs(b-(n-1)/2)-Math.abs(a-(n-1)/2));
+      order.forEach(i=>{ const p=pimgs[i], a=ad(p), im=p.img, r=Math.min(cw*1.5/im.width,hh*1.08/im.height)*a.s, w=im.width*r, h=im.height*r, cx=hx+cw*(i+.5)+a.dx*cw, y=hy+hh-h+a.dy*hh; x.drawImage(im,cx-w/2,y,w,h); phBoxes.push({name:p.name,x:cx-w/2,y,w,h,cw,hh}); }); }
     const fd=x.createLinearGradient(hx+pw-200,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.5)':'rgba(255,255,255,.3)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
   else if(photo){ const zw=pw-30, r=Math.min(zw/photo.width,(hh*1.12)/photo.height), w=photo.width*r, h=photo.height*r; x.drawImage(photo,hx+(pw-w)/2-10,hy+hh-h,w,h); const fd=x.createLinearGradient(hx+pw-220,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.55)':'rgba(255,255,255,.35)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
   else { x.fillStyle=hexA(acc,.10); x.fillRect(hx,hy,pw,hh); x.fillStyle=hexA(acc,.20); x.font='400 300px Anton'; x.textAlign='center'; x.fillText('#'+(heroRow?heroRow.rank:1),hx+pw/2-20,hy+hh-10); x.textAlign='left'; }
@@ -1046,7 +1060,7 @@ async function drawCastPoster(){
   const mapTxt=res.kind==='match'?mapOf(res.match):mapText(res.kind==='day'?res.ms:Array.from({length:N},(_,i)=>i+1)), when=[info?.date,fmtTime(info?.time),mapTxt||info?.map].filter(Boolean).join('  ·  ').toUpperCase();
   x.font='600 24px "Barlow Condensed"'; x.letterSpacing='3px'; x.fillStyle=T.sub; x.textAlign='left'; x.fillText(when,hx,1744);
   const cr=(S.cfg.credit||'').trim(); if(cr){ x.textAlign='right'; x.font='700 30px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),hx+hw,1744); }
-  x.letterSpacing='0px'; x.textAlign='left';
+  x.letterSpacing='0px'; x.textAlign='left'; phPlace();
 }
 
 function canvasBlob(){ return new Promise((res,rej)=>{ try{ $("cv").toBlob(b=>b?res(b):rej(new Error('empty')),'image/png'); }catch(e){ rej(e); } }); }
@@ -1066,7 +1080,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pHeroStyle').value=c.heroStyle||'cards'; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -1197,7 +1211,29 @@ $('pStage').oninput=e=>{ S.cfg.stage=e.target.value; save(); drawPoster(); };
 $('pLive').oninput=e=>{ S.cfg.live=e.target.value; save(); drawPoster(); };
 $('pHero').onchange=e=>{ S.cfg.hero=e.target.checked; save(); drawPoster(); };
 $('pPhoto').onchange=e=>{ S.cfg.photoSel=e.target.value; save(); drawPoster(); };
-$('pPlayers').onchange=()=>{ const t=$('pPlayers').dataset.team; (S.cfg.pick=S.cfg.pick||{})[norm(t)]=[...$('pPlayers').querySelectorAll('input:checked')].map(e=>e.value); $('pPlayers').dataset.k=''; save(); drawPoster(); };
+$('pPlayers').onchange=()=>{ const t=$('pPlayers').dataset.team, ck=[...$('pPlayers').querySelectorAll('input:checked')].map(e=>e.value), prev=curPsel.slice(); (S.cfg.pick=S.cfg.pick||{})[norm(t)]=prev.filter(n=>ck.includes(n)).concat(ck.filter(n=>!prev.includes(n))); $('pPlayers').dataset.k=''; save(); drawPoster(); };
+$('pHeroStyle').onchange=e=>{ S.cfg.heroStyle=e.target.value; save(); drawPoster(); };
+/* ---- drag / zoom editor for the player photos ---- */
+let phSel=null, phBoxes=[], phDrag=null, phRaf=0, phEdit=false, curPsel=[];
+const phTeam=()=>norm($('pPlayers').dataset.team||'');
+function phAdj(name){ const t=phTeam(); S.cfg.adj=S.cfg.adj||{}; const a=S.cfg.adj[t]=S.cfg.adj[t]||{}; return a[norm(name)]=a[norm(name)]||{dx:0,dy:0,s:1}; }
+function phPlace(){ const o=$('phSel'), b=phEdit&&phSel&&phBoxes.find(q=>q.name===phSel); if(!b){ o.style.display='none'; return; }
+  const cv=$('cv'), k=cv.clientWidth/cv.width, hx=70, hy=560, ww=Math.min(b.w,740-44), x0=Math.max(b.x,hx), x1=Math.min(b.x+b.w,hx+740-44), y0=Math.max(b.y,hy), y1=Math.min(b.y+b.h,hy+280);
+  o.style.display='block'; o.style.left=x0*k+'px'; o.style.top=y0*k+'px'; o.style.width=Math.max(4,(x1-x0)*k-6)+'px'; o.style.height=Math.max(4,(y1-y0)*k-6)+'px'; }
+function phCtl(){ $('phCtl').style.display=phEdit?'':'none'; $('phName').textContent=phSel||'click a player on the poster'; if(phSel){ const a=phAdj(phSel); $('phS').value=a.s; $('phX').value=a.dx; $('phY').value=a.dy; } phPlace(); }
+const phRedraw=()=>{ if(phRaf) return; phRaf=requestAnimationFrame(()=>{ phRaf=0; drawPoster(); }); };
+const cvPt=e=>{ const r=$('cv').getBoundingClientRect(), k=$('cv').width/r.width; return {x:(e.clientX-r.left)*k,y:(e.clientY-r.top)*k}; };
+const phHit=pt=>{ for(let i=phBoxes.length-1;i>=0;i--){ const b=phBoxes[i]; if(pt.x>=b.x&&pt.x<=b.x+b.w&&pt.y>=b.y&&pt.y<=b.y+b.h&&pt.y>=560&&pt.y<=840) return b; } return null; };
+$('pEditPh').onchange=e=>{ phEdit=e.target.checked; $('cv').style.cursor=phEdit?'move':''; $('cv').style.touchAction=phEdit?'none':''; phCtl(); };
+$('cv').addEventListener('pointerdown',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e)); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); phDrag={p:cvPt(e),a:Object.assign({},a),b}; $('cv').setPointerCapture(e.pointerId); phCtl(); });
+$('cv').addEventListener('pointermove',e=>{ if(!phDrag) return; const p=cvPt(e), a=phAdj(phSel); a.dx=Math.max(-1.5,Math.min(1.5,phDrag.a.dx+(p.x-phDrag.p.x)/phDrag.b.cw)); a.dy=Math.max(-1.5,Math.min(1.5,phDrag.a.dy+(p.y-phDrag.p.y)/phDrag.b.hh)); $('phX').value=a.dx; $('phY').value=a.dy; phRedraw(); });
+const phEnd=()=>{ if(phDrag){ phDrag=null; save(); } }; $('cv').addEventListener('pointerup',phEnd); $('cv').addEventListener('pointercancel',phEnd);
+$('cv').addEventListener('wheel',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e))||phBoxes.find(q=>q.name===phSel); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); a.s=Math.max(.4,Math.min(3,a.s*Math.exp(-e.deltaY*.0015))); $('phS').value=a.s; clearTimeout(phSave); phSave=setTimeout(save,400); phCtl(); phRedraw(); },{passive:false});
+let phSave; ['phS','phX','phY'].forEach(id=>$(id).oninput=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=+$('phS').value; a.dx=+$('phX').value; a.dy=+$('phY').value; clearTimeout(phSave); phSave=setTimeout(save,400); phRedraw(); });
+$('phReset').onclick=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=1; a.dx=0; a.dy=0; save(); phCtl(); drawPoster(); };
+$('phResetAll').onclick=()=>{ if(S.cfg.adj) delete S.cfg.adj[phTeam()]; save(); phCtl(); drawPoster(); };
+const phMove=d=>{ if(!phSel) return; const arr=curPsel.slice(), i=arr.indexOf(phSel), j=i+d; if(i<0||j<0||j>=arr.length) return; [arr[i],arr[j]]=[arr[j],arr[i]]; (S.cfg.pick=S.cfg.pick||{})[phTeam()]=arr; save(); drawPoster(); };
+$('phL').onclick=()=>phMove(-1); $('phR').onclick=()=>phMove(1);
 $('pHeroMode').onchange=e=>{ S.cfg.heroMode=e.target.value; save(); drawPoster(); };
 $('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); Object.keys(plistCache).forEach(k=>delete plistCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} squad photos, ${j.teamsWithPlayers.length} teams with player pictures, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
 $('pFlair').onchange=e=>{ S.cfg.flair=e.target.checked; save(); drawPoster(); };
