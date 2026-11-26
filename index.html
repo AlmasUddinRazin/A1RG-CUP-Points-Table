@@ -267,6 +267,8 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <label class="f">Watch live on (optional)</label><input id="pLive" placeholder="e.g. RG ESPORTS INC">
         <label class="f inl"><input type="checkbox" id="pHero"> Show photo frame (team photo + top-team stats)</label>
         <label class="f">Team photo</label><select id="pPhoto"></select>
+        <label class="f">Photo type</label><select id="pHeroMode"><option value="squad">One squad photo (file in Team Photos)</option><option value="players">Individual players (folder per team)</option></select>
+        <div id="pPlayers" style="margin-top:4px"></div>
         <div class="note" id="pPhotoStat"></div>
         <button class="btn ghost" id="btnPhotoRefresh" style="margin-top:6px">Refresh photo list from Drive</button>
       </div>
@@ -411,7 +413,7 @@ function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='sh
 async function api(action, payload){
   const {apiUrl,key} = S.cfg; if(!apiUrl) throw new Error('No sheet connected');
   let r;
-  const read = action==='all'||action==='ping'||action==='photo'||action==='photos', extra=read?Object.keys(payload||{}).map(k=>`&${k}=${encodeURIComponent(payload[k])}`).join(''):'';
+  const read = action==='all'||action==='ping'||action==='photo'||action==='photos'||action==='players', extra=read?Object.keys(payload||{}).map(k=>`&${k}=${encodeURIComponent(payload[k])}`).join(''):'';
   if(read) r = await fetch(`${apiUrl}${apiUrl.includes('?')?'&':'?'}action=${action}&key=${encodeURIComponent(key)}${extra}&_=${Date.now()}`,{cache:'no-store'});
   else r = await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,key,round:S.round},payload))});
   const j = await r.json(); if(!read) lastOwn=Date.now(); if(!j.ok) throw new Error(j.error||'Sheet error'); return j;
@@ -939,10 +941,15 @@ async function drawSlotPoster(){
 const photoCache={}; let photoErr='';
 const slugOf=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 function imgFromData(url){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=url; }); }
-async function teamPhoto(name,kind){ photoErr=''; if(!name||!S.cfg.apiUrl) return null; const k=(kind||'photo')+'|'+norm(name);
+async function teamPhoto(name,kind,player){ photoErr=''; if(!name||!S.cfg.apiUrl) return null; const k=(kind||'photo')+'|'+norm(name)+'|'+norm(player);
   if(k in photoCache) return photoCache[k];
-  try{ const j=await api('photo',{team:name,kind:kind||'photo'}); photoCache[k]=j.found?await imgFromData(`data:${j.mime};base64,${j.data}`):null; return photoCache[k]; }
+  try{ const j=await api('photo',{team:name,kind:kind||'photo',player:player||''}); photoCache[k]=j.found?await imgFromData(`data:${j.mime};base64,${j.data}`):null; return photoCache[k]; }
   catch(e){ photoErr=e.message; return null; } }
+const plistCache={};
+async function teamPlayers(name){ if(!name||!S.cfg.apiUrl) return []; const k=norm(name); if(k in plistCache) return plistCache[k];
+  try{ const j=await api('photos',{team:name}); return plistCache[k]=j.players||[]; }catch(e){ photoErr=e.message; return []; } }
+function fillPlayerBox(team,list,sel){ const key=team+'|'+list.join('|')+'|'+sel.join('|'); if($('pPlayers').dataset.k===key) return; $('pPlayers').dataset.k=key; $('pPlayers').dataset.team=team;
+  $('pPlayers').innerHTML=list.length?list.map(n=>`<label class="inl note" style="margin-right:12px"><input type="checkbox" value="${esc(n)}" ${sel.includes(n)?'checked':''}> ${esc(n)}</label>`).join(''):''; }
 const layoutOf=()=>S.cfg.layout||'cast';
 const perOf=()=>layoutOf()==='cast'?16:(+S.cfg.perPage||8);
 function fillPhotoSel(rows){ const key=rows.map(r=>r.team).join('|'); if($('pPhoto').dataset.k!==key){ $('pPhoto').dataset.k=key;
@@ -957,12 +964,17 @@ async function drawCastPoster(){
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('italic 700 30px "Barlow Condensed"'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
   const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
-  let heroRow=null, heroName=null, photo=null;
+  let heroRow=null, heroName=null, photo=null, plist=[], psel=[], pimgs=[], logo=null;
   if(res){ const sorted=res.rows.slice().sort((a,b)=>a.rank-b.rank); fillPhotoSel(sorted); const sel=S.cfg.photoSel||'auto';
     heroName=sel==='none'?null:(sel==='auto'?sorted[0]?.team:sel); heroRow=sorted.find(r=>norm(r.team)===norm(heroName))||sorted[0];
-    if(heroName&&S.cfg.hero!==false){ photo=await teamPhoto(heroName,'photo'); if(my!==drawing) return; } }
+    if(heroName&&S.cfg.hero!==false){
+      if(S.cfg.heroMode==='players'){ plist=await teamPlayers(heroName); if(my!==drawing) return; const pk=(S.cfg.pick||{})[norm(heroName)]; psel=(pk?plist.filter(n=>pk.includes(n)):plist.slice(0,5)).slice(0,6);
+        pimgs=(await Promise.all(psel.map(n=>teamPhoto(heroName,'player',n)))).filter(Boolean); fillPlayerBox(heroName,plist,psel); }
+      else{ photo=await teamPhoto(heroName,'photo'); fillPlayerBox('',[],[]); }
+      logo=await teamPhoto(heroName,'logo'); if(my!==drawing) return; } }
   $('pNote').textContent=posterImgUrl()&&!img?'Background picture could not be loaded. Drawing without it.':'';
-  $('pPhotoStat').textContent=!res?'':(S.cfg.hero===false?'Photo frame is off: the table uses the full height.':!heroName?'No photo is used.':!S.cfg.apiUrl?'Connect the sheet to use the Drive photos.':photoErr?'Photo problem: '+photoErr:photo?`Photo of ${heroName} loaded from Drive ✔`:`No photo for "${heroName}" in the Drive folder. Name the file  ${slugOf(heroName)}.png`);
+  $('pPhotoStat').textContent=!res?'':(S.cfg.hero===false?'Photo frame is off: the table uses the full height.':!heroName?'No photo is used.':!S.cfg.apiUrl?'Connect the sheet to use the Drive photos.':photoErr?'Drive problem: '+photoErr:
+    (S.cfg.heroMode==='players'?(pimgs.length?`${pimgs.length} of ${plist.length} player pictures of ${heroName} loaded ✔`:`No player pictures for "${heroName}". Create a folder named "${heroName}" inside Team Photos and put the player pictures in it.`):(photo?`Photo of ${heroName} loaded from Drive ✔`:`No photo for "${heroName}". Name the file  ${slugOf(heroName)}.png`))+(logo?'  ·  logo ✔':'  ·  no logo found ('+slugOf(heroName)+'.png in Team Logos)'));
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc); if(img) drawPicture(x,W,H,img,bd,dark);
   drawFrame(x,W,H,acc,dark);
@@ -987,7 +999,10 @@ async function drawCastPoster(){
   if(hero){
   x.save(); rrPath(x,hx,hy,hw,hh,6); x.fillStyle=T.panel; x.fill(); x.lineWidth=2; x.strokeStyle=hexA(acc,.7); x.stroke(); x.clip();
   x.save(); x.beginPath(); x.moveTo(hx,hy); x.lineTo(hx+pw,hy); x.lineTo(hx+pw-44,hy+hh); x.lineTo(hx,hy+hh); x.closePath(); x.clip();
-  if(photo){ const zw=pw-30, r=Math.min(zw/photo.width,(hh*1.12)/photo.height), w=photo.width*r, h=photo.height*r; x.drawImage(photo,hx+(pw-w)/2-10,hy+hh-h,w,h); const fd=x.createLinearGradient(hx+pw-220,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.55)':'rgba(255,255,255,.35)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
+  if(pimgs.length){ const n=pimgs.length, cell=(pw-60)/n, order=[...Array(n).keys()].sort((a,b)=>Math.abs(b-(n-1)/2)-Math.abs(a-(n-1)/2));
+    order.forEach(i=>{ const im=pimgs[i], r=Math.min(cell*1.5/im.width,hh*1.08/im.height), w=im.width*r, h=im.height*r, cx=hx+30+cell*(i+.5)-8; x.drawImage(im,cx-w/2,hy+hh-h,w,h); });
+    const fd=x.createLinearGradient(hx+pw-200,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.5)':'rgba(255,255,255,.3)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
+  else if(photo){ const zw=pw-30, r=Math.min(zw/photo.width,(hh*1.12)/photo.height), w=photo.width*r, h=photo.height*r; x.drawImage(photo,hx+(pw-w)/2-10,hy+hh-h,w,h); const fd=x.createLinearGradient(hx+pw-220,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.55)':'rgba(255,255,255,.35)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
   else { x.fillStyle=hexA(acc,.10); x.fillRect(hx,hy,pw,hh); x.fillStyle=hexA(acc,.20); x.font='400 300px Anton'; x.textAlign='center'; x.fillText('#'+(heroRow?heroRow.rank:1),hx+pw/2-20,hy+hh-10); x.textAlign='left'; }
   x.restore();
   x.save(); x.beginPath(); x.moveTo(hx+pw+18,hy); x.lineTo(hx+hw,hy); x.lineTo(hx+hw,hy+hh); x.lineTo(hx+pw-26,hy+hh); x.closePath(); const ag=x.createLinearGradient(hx+pw,hy,hx+hw,hy+hh); ag.addColorStop(0,acc); ag.addColorStop(1,shade(acc,.42)); x.fillStyle=ag; x.fill(); x.restore();
@@ -995,8 +1010,8 @@ async function drawCastPoster(){
   x.restore();
   if(heroRow){ const cx0=hx+pw+100, step=(hx+hw-cx0-70)/3, stats=[[heroRow.wwcd||0,'WWCD'],[heroRow.place,'PLACE PTS'],[heroRow.kills,'ELIMS'],[heroRow.total,'TOTAL PTS']], fg=ink(acc);
     stats.forEach(([v,l],i)=>{ const cx=cx0+i*step; x.textAlign='center'; x.fillStyle=fg; x.font='400 84px Anton'; x.fillText(String(v),cx,hy+98); const cw=112,ch=36; rrPath(x,cx-cw/2,hy+112,cw,ch,4); x.fillStyle=i===3?'#ffe08a':'rgba(255,255,255,.94)'; x.fill(); x.fillStyle='#10162b'; x.font='700 17px "Barlow Condensed"'; x.letterSpacing='0px'; x.fillText(l,cx,hy+137); x.letterSpacing='0px'; });
-    x.textAlign='left'; x.fillStyle=fg; x.font='400 74px Anton'; x.fillText('#'+heroRow.rank,hx+pw+40,hy+235);
-    const nx=hx+pw+170, nw=hx+hw-40-nx; x.save(); x.beginPath(); x.moveTo(nx+24,hy+188); x.lineTo(nx+nw,hy+188); x.lineTo(nx+nw-24,hy+250); x.lineTo(nx,hy+250); x.closePath(); x.fillStyle='rgba(8,10,34,.72)'; x.fill(); x.restore();
+    x.textAlign='left'; x.fillStyle=fg; x.font=`400 ${heroRow.rank>=10?54:74}px Anton`; x.fillText('#'+heroRow.rank,hx+pw+40,hy+235);
+    const lx=hx+pw+118, nx=hx+pw+(logo?196:170), nw=hx+hw-40-nx; if(logo){ rrPath(x,lx,hy+188,62,62,8); x.fillStyle='#ffffff'; x.fill(); const lk=Math.min(54/logo.width,54/logo.height); x.drawImage(logo,lx+31-logo.width*lk/2,hy+219-logo.height*lk/2,logo.width*lk,logo.height*lk); } x.save(); x.beginPath(); x.moveTo(nx+24,hy+188); x.lineTo(nx+nw,hy+188); x.lineTo(nx+nw-24,hy+250); x.lineTo(nx,hy+250); x.closePath(); x.fillStyle='rgba(8,10,34,.72)'; x.fill(); x.restore();
     x.fillStyle='#fff'; x.textAlign='center'; const fs=fitText(x,heroRow.team.toUpperCase(),nw-80,44,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.textBaseline='middle'; x.fillText(heroRow.team.toUpperCase(),nx+nw/2,hy+220); x.textBaseline='alphabetic'; x.textAlign='left'; }
   }
   // ---- 8 + 8 table
@@ -1051,7 +1066,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -1182,7 +1197,9 @@ $('pStage').oninput=e=>{ S.cfg.stage=e.target.value; save(); drawPoster(); };
 $('pLive').oninput=e=>{ S.cfg.live=e.target.value; save(); drawPoster(); };
 $('pHero').onchange=e=>{ S.cfg.hero=e.target.checked; save(); drawPoster(); };
 $('pPhoto').onchange=e=>{ S.cfg.photoSel=e.target.value; save(); drawPoster(); };
-$('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} team photos, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
+$('pPlayers').onchange=()=>{ const t=$('pPlayers').dataset.team; (S.cfg.pick=S.cfg.pick||{})[norm(t)]=[...$('pPlayers').querySelectorAll('input:checked')].map(e=>e.value); $('pPlayers').dataset.k=''; save(); drawPoster(); };
+$('pHeroMode').onchange=e=>{ S.cfg.heroMode=e.target.value; save(); drawPoster(); };
+$('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); Object.keys(plistCache).forEach(k=>delete plistCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} squad photos, ${j.teamsWithPlayers.length} teams with player pictures, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
 $('pFlair').onchange=e=>{ S.cfg.flair=e.target.checked; save(); drawPoster(); };
 $('pType').onchange=e=>{ S.cfg.ptype=e.target.value; save(); applyPType(); renderStand(); drawPoster(); };
 $('pSlotSub').oninput=e=>{ S.cfg.slotSub=e.target.value; save(); drawPoster(); };
