@@ -52,3 +52,9 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 - **Group details editor** (Match Desk → "Group details"): change Group No., Date, Time and Map rotation on the website and press *Save details to sheet*. They are written into the group's header block on the roster tab (e.g. "Round 2 - Playing"). Changing the Group No. renames saved lobby/results data too. Time is written as `h:mm:00 PM N Match(es)` (N from Round format). Date/Time/Map are written as plain text, so a formula in those cells would be replaced.
 - **Auto-refresh:** the site asks the sheet every ~8 s "did anything change?" (tiny `ping` request) and reloads only when it did. It no longer waits for you to click away from a box, and it never overwrites a lobby edit still being saved or details you are typing. Works with an old Code.gs too (slower fallback).
 - **Slot poster:** Poster tab → Design → "Lobby slots", or the "Slot poster" button in Match Desk. Info panel (group, date, time, map per match) on the left, slot list #5–#20 on the right, no emails. Choose each match's map, show all matches or one match only, optional note line. PNG downloads as `…-group-33-slots.png`.
+
+## v5.1 – Round 3
+- Round 3 added (tab "Round 3 - Playing", groups 49–56, two-way lobby sync like Round 2). Matches/days start at 2 / 1; change them in Round format any time.
+- Group details: Map rotation now has one dropdown per match (Match 1 Erangel, Match 2 Rondo …) and is written as `Erangel / Rondo`.
+- Round 3 look: Blood Moon backdrop, red accent, hazard-stripe frame + corner brackets ("Elite frame" checkbox in Poster). New backdrops: Blood Moon, Neon Teal. Each round remembers its own backdrop/colour.
+- Update: replace all of Code.gs (set ADMIN_KEY), Deploy → New version; replace index.html; Ctrl+F5.
