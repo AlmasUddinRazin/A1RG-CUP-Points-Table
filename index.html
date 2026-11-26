@@ -176,7 +176,8 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <div><label class="f">Date</label><input id="giDate" type="date"></div>
         <div><label class="f">Time</label><input id="giTime" type="time"></div>
       </div>
-      <label class="f">Map rotation</label><input id="giMap" list="mapList" placeholder="e.g. Erangel / Miramar / Rondo">
+      <label class="f">Map rotation</label><div class="mapRow" id="giMapSel"></div>
+      <input id="giMap" list="mapList" placeholder="e.g. Erangel / Miramar / Rondo">
       <datalist id="mapList"><option value="Erangel"><option value="Miramar"><option value="Rondo"></datalist>
       <div class="chips" id="giMapChips"></div>
     </div>
@@ -272,6 +273,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       </div>
       <label class="f">Bottom-right line</label><input id="pCredit" placeholder="ENIGMA OPERATION LTD.">
       <label class="f">Logo (top right)</label><select id="pLogo"><option value="auto">Auto (white on dark, black on light)</option><option value="white">Always white</option><option value="black">Always black</option><option value="none">Hide logo</option></select>
+      <label class="f inl" style="margin-top:12px"><input type="checkbox" id="pFlair"> Elite frame (hazard stripes + corner brackets)</label>
       <div class="rOnly"><label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label></div>
       <label class="f">Accent colour</label>
       <div class="sw" id="pSw"></div>
@@ -378,7 +380,11 @@ let pageIdx=0, pageKey='';
 const pageCount = () => { const r=standG!=null?viewRes(standG):null; return r?Math.max(1,Math.ceil(r.rows.length/(+S.cfg.perPage||8))):1; };
 const daysN = () => Math.max(1,Math.min(14,+roundInfo(S.round).days||1));
 if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
-bind(S.round);
+const ROUND_LOOK={3:{bd:'blood',accent:'#ff2d3d'}};
+function rememberLook(){ (S.cfg.rt=S.cfg.rt||{})[S.round]={bd:S.cfg.bd,accent:S.cfg.accent}; }
+function applyLook(){ const t=(S.cfg.rt||{})[S.round]||ROUND_LOOK[S.round]; if(t){ S.cfg.bd=t.bd; S.cfg.accent=t.accent; } }
+let lookFor=0;
+bind(S.round); applyLook(); lookFor=S.round;
 let curG = null, curM = 1, curDay = 1, viewM = 0, viewD = 0, draft = null, standG = null;
 let slotG=null, giDirty=false, giOrig=null, pendSince=0, lastOwn=0, noPing=false, pollN=0, pinging=false;
 const markPending=k=>{ pendingLobby.add(k); pendSince=Date.now(); };
@@ -413,7 +419,7 @@ function applyData(j){
     if(rd.sync) b.roster.forEach(gr=>{ if(pendingLobby.has(rd.id+':'+gr.no)) return; const seat={}; gr.teams.forEach(t=>{ seat[t.slot]=t.name; }); b.lobby[gr.no]=seat; });   // the roster tab IS the lobby
     b.roster.forEach(gr=>(b.bench[gr.no]||[]).forEach(bt=>{ if(!gr.teams.some(t=>norm(t.name)===norm(bt.name))) gr.teams.push({slot:0,name:bt.name,email:bt.email,bench:true}); })); });
   if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
-  bind(S.round); if(curM>matchesN()) curM=matchesN(); lastSync=new Date(); if(curG&&!grp(curG)){ curG=null; draft=null; $('deskBody').style.display='none'; } save(); renderAll(); if(curG&&grp(curG)){ renderSlots(); renderMatchBar(); renderMeta(false); }
+  bind(S.round); if(lookFor!==S.round){ applyLook(); lookFor=S.round; } if(curM>matchesN()) curM=matchesN(); lastSync=new Date(); if(curG&&!grp(curG)){ curG=null; draft=null; $('deskBody').style.display='none'; } save(); renderAll(); if(curG&&grp(curG)){ renderSlots(); renderMatchBar(); renderMeta(false); }
 }
 const sigOf = j => j.sig || JSON.stringify([j.rosters,j.lobby,j.results,j.rules,j.config&&j.config.rounds]);
 async function pull(quiet){
@@ -488,12 +494,18 @@ function renderMeta(force){ if(!curG) return; const g=grp(curG); if(!g) return;
   $('teamList').innerHTML = g.teams.map(t=>`<option value="${esc(t.name)}">`).join(''); renderGroupInfo(force); }
 function renderGroupInfo(force){ const g=grp(curG); if(!g) return; if(giDirty&&giOrig&&giOrig.no===curG&&!force) return;     // never overwrite what the admin is typing
   const rd=roundInfo(S.round), editable=!S.cfg.apiUrl||!!rd.sync; giOrig={no:curG,date:isoDate(g.date),time:clock24(g.time),map:g.map||''}; giDirty=false;
-  $('giTitle').textContent='Group '+curG; $('giNo').value=curG; $('giDate').value=giOrig.date; $('giTime').value=giOrig.time; $('giMap').value=giOrig.map;
-  ['giNo','giDate','giTime','giMap','btnSaveInfo'].forEach(i=>$(i).disabled=!editable);
+  $('giTitle').textContent='Group '+curG; $('giNo').value=curG; $('giDate').value=giOrig.date; $('giTime').value=giOrig.time; $('giMap').value=giOrig.map; renderGiMapSel();
+  ['giNo','giDate','giTime','giMap','btnSaveInfo'].forEach(i=>$(i).disabled=!editable); document.querySelectorAll('#giMapSel select').forEach(e=>e.disabled=!editable);
   const rot=mapText(Array.from({length:matchesN()},(_,i)=>i+1));
   $('giMapChips').innerHTML=editable?MAPS.map(m=>`<button class="mc" data-gimap="${esc(m)}">${esc(m)}</button>`).join('')+(rot&&rot!==MAPS.find(m=>m===rot)?`<button class="mc" data-gimap="${esc(rot)}">Round rotation · ${esc(rot)}</button>`:''):'';
   $('giNote').textContent=!editable?`${rd.name} is locked: its sheet tab is not written by the website.`:(S.cfg.apiUrl?'Written into the roster tab of the sheet. Boxes you do not touch stay as they are. The "Match" count after the time follows Round format.':'Not connected to the sheet: changes stay on this device.')+(g.date&&!giOrig.date?` The current date "${g.date}" is not dd/mm/yyyy; pick a date to replace it.`:''); }
 ['giNo','giDate','giTime','giMap'].forEach(id=>$(id).addEventListener('input',()=>{ giDirty=true; }));
+function renderGiMapSel(){ const N=matchesN(), cur=($('giMap').value||'').split(/\s*[\/,|·→>+&]+\s*/).filter(Boolean);
+  $('giMapSel').innerHTML=[...Array(N)].map((_,i)=>{ const v=cur[i]||'', opts=!v||MAPS.some(m=>m.toLowerCase()===v.toLowerCase())?MAPS:MAPS.concat(v);
+    return `<label class="inl note">${N>1?'Match '+(i+1):'Map'} <select data-gm="${i}"><option value="">—</option>${opts.map(m=>`<option ${m.toLowerCase()===v.toLowerCase()?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`; }).join('');
+  $('giMapSel').querySelectorAll('select').forEach(e=>e.disabled=$('giMap').disabled); }
+$('giMapSel').addEventListener('change',()=>{ $('giMap').value=[...$('giMapSel').querySelectorAll('select')].map(e=>e.value).filter(Boolean).join(' / '); giDirty=true; });
+$('giMap').addEventListener('input',()=>renderGiMapSel());
 function renameLocal(a,b){ const bd=bundle(S.round); [S.lobby,S.mres,S.rules,bd.bench].forEach(o=>{ if(o&&o[a]!==undefined){ o[b]=o[a]; delete o[a]; } }); const g=grp(a); if(g) g.no=b; S.roster.sort((x,y)=>x.no-y.no); recompute(bd); if(standG===a) standG=b; if(slotG===a) slotG=b; if(curG===a) curG=b; }
 async function saveGroupDetails(){ const g=grp(curG); if(!g||!giOrig) return; const o={};
   const nn=Math.floor(+$('giNo').value); if(nn&&nn!==curG) o.newNo=nn;
@@ -723,6 +735,8 @@ const BACKDROPS=[
  {id:'emerald', name:'Emerald',    mode:'dark', c1:'#07261d', c2:'#020b09', pat:'hex',  glow:'#10b981'},
  {id:'royal',   name:'Royal',      mode:'dark', c1:'#1d1240', c2:'#080519', pat:'rays', glow:'#8b5cf6'},
  {id:'gold',    name:'Black Gold', mode:'dark', c1:'#211806', c2:'#070502', pat:'hex',  glow:'#f59e0b'},
+ {id:'blood',   name:'Blood Moon', mode:'dark', c1:'#3d0508', c2:'#070102', pat:'embers',glow:'#ff2d3d', glow2:'#8a0012'},
+ {id:'neon',    name:'Neon Teal',  mode:'dark', c1:'#06323a', c2:'#010a0c', pat:'scan',  glow:'#14e0d0', glow2:'#0a7cff'},
  {id:'snow',    name:'Snow',       mode:'light',c1:'#ffffff', c2:'#e4e9f2', pat:'diag', glow:'acc'},
  {id:'sand',    name:'Sand',       mode:'light',c1:'#f7f0e3', c2:'#e0d3b8', pat:'rays', glow:'acc'},
  {id:'steel',   name:'Steel',      mode:'light',c1:'#eaeef4', c2:'#bfc8d6', pat:'grid', glow:'acc'},
@@ -748,6 +762,8 @@ function drawBackdrop(x,W,H,bd,acc){
   else if(bd.pat==='grid'){ for(let i=0;i<W;i+=64){ x.beginPath(); x.moveTo(i,0); x.lineTo(i,H); x.stroke(); } for(let j=0;j<H;j+=64){ x.beginPath(); x.moveTo(0,j); x.lineTo(W,j); x.stroke(); } }
   else if(bd.pat==='hex'){ const R=46,w=Math.sqrt(3)*R; for(let j=-1;j*1.5*R<H+R;j++) for(let i=-1;i*w<W+w;i++){ const cx=i*w+(j%2?w/2:0), cy=j*1.5*R; x.beginPath(); for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3; x[k?'lineTo':'moveTo'](cx+R*Math.cos(a),cy+R*Math.sin(a)); } x.closePath(); x.stroke(); } }
   else if(bd.pat==='rays'){ const n=26, d=(Math.PI/2)/n; for(let i=0;i<n;i+=1){ const a=Math.PI/2+i*d; x.beginPath(); x.moveTo(W,0); x.lineTo(W+Math.cos(a)*3200,Math.sin(a)*3200); x.lineTo(W+Math.cos(a+d/2)*3200,Math.sin(a+d/2)*3200); x.closePath(); x.fill(); } }
+  else if(bd.pat==='scan'){ for(let j=0;j<H;j+=7){ x.beginPath(); x.moveTo(0,j); x.lineTo(W,j); x.lineWidth=1.5; x.stroke(); } }
+  else if(bd.pat==='embers'){ let sd=11; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647; for(let i=0;i<340;i++){ const px=rnd()*W, py=H*(1-Math.pow(rnd(),1.7)), rr=.8+rnd()*3.2; x.fillStyle=hexA(glow,.08+rnd()*.5); x.beginPath(); x.arc(px,py,rr,0,7); x.fill(); } }
   x.restore();
   if(dark){ r=x.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,W*.75); r.addColorStop(0,'rgba(0,0,0,0)'); r.addColorStop(1,'rgba(0,0,0,.5)'); x.fillStyle=r; x.fillRect(0,0,W,H); }
 }
@@ -762,6 +778,14 @@ function drawPicture(x,W,H,img,bd,dark){
     x.drawImage(img,W-w+(w-W*.5)*.25,(H-h)/2,w,h); x.fillStyle=veil(dim*.6); x.fillRect(W*.5,0,W*.5,H); x.restore();
     const gr=x.createLinearGradient(W*.42,0,W*.8,0); gr.addColorStop(0,bd.c1); gr.addColorStop(1,hexA(bd.c1,0)); x.fillStyle=gr; x.fillRect(W*.42,0,W*.4,H); }
 }
+const flairOn=()=>S.cfg.flair==null?S.round>=3:!!S.cfg.flair;
+function drawFrame(x,W,H,acc,dark){
+  if(!flairOn()){ x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10); return; }
+  const bar=(y0)=>{ x.save(); x.beginPath(); x.rect(0,y0,W,16); x.clip(); x.fillStyle=dark?'#05060a':'#0e1220'; x.fillRect(0,y0,W,16); x.fillStyle=acc;
+    for(let i=-20;i<W+20;i+=44){ x.beginPath(); x.moveTo(i,y0+16); x.lineTo(i+22,y0+16); x.lineTo(i+38,y0); x.lineTo(i+16,y0); x.closePath(); x.fill(); } x.restore(); };
+  bar(0); bar(H-16);
+  x.save(); x.strokeStyle=acc; x.lineWidth=6; x.lineCap='square'; const m=30,L=70;
+  [[m,m+10,1,1],[W-m,m+10,-1,1],[m,H-m-10,1,-1],[W-m,H-m-10,-1,-1]].forEach(([cx,cy,dx,dy])=>{ x.beginPath(); x.moveTo(cx+dx*L,cy); x.lineTo(cx,cy); x.lineTo(cx,cy+dy*L); x.stroke(); }); x.restore(); }
 let drawing=0;
 function drawPoster(){ return S.cfg.ptype==='slots'?drawSlotPoster():drawResultPoster(); }
 async function drawResultPoster(){
@@ -779,7 +803,7 @@ async function drawResultPoster(){
   drawBackdrop(x,W,H,bd,acc);
   if(img) drawPicture(x,W,H,img,bd,dark);
   if(dark){ const sc=x.createLinearGradient(0,0,W*.72,0); sc.addColorStop(0,'rgba(0,0,0,.38)'); sc.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=sc; x.fillRect(0,0,W,H); }
-  x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
+  drawFrame(x,W,H,acc,dark);
   if(!res){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
   const matchView=res.kind!=='overall', N=matchesN(), qn=matchView?999:qualifyFor(g), sb=!matchView&&S.cfg.statusCol;
   // title block
@@ -837,9 +861,9 @@ async function drawResultPoster(){
   const cr=(S.cfg.credit||'').trim(); if(cr){ x.font='700 28px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),W-60,1046); }
   x.letterSpacing='0px'; x.textAlign='left';
 }
-function slotMapItems(N,info){ const sel=S.cfg.slotMaps||'all';
+function slotMapItems(N,info){ const sel=S.cfg.slotMaps||'all', gm=(info&&info.map||'').split(/\s*[\/,|·→>+&]+\s*/).filter(Boolean), mapOf=m=>(roundInfo(S.round).maps||[])[m-1]||gm[m-1]||(gm.length===1&&N===1?gm[0]:'');
   if(sel[0]==='m'&&N>1){ const m=+sel.slice(1); return [{k:'MATCH '+m,v:mapOf(m)||'TBA'}]; }
-  if(N===1) return [{k:'MAP',v:mapOf(1)||info?.map||'TBA'}];
+  if(N===1) return [{k:'MAP',v:mapOf(1)||'TBA'}];
   return Array.from({length:N},(_,i)=>({k:'MATCH '+(i+1),v:mapOf(i+1)||'TBA'})); }
 async function drawSlotPoster(){
   const my=++drawing, cv=$("cv"), x=cv.getContext('2d'), W=1920, H=1080, acc=S.cfg.accent;
@@ -854,7 +878,7 @@ async function drawSlotPoster(){
   $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded. Drawing without it.' : '';
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc); if(img) drawPicture(x,W,H,img,bd,dark);
-  x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
+  drawFrame(x,W,H,acc,dark);
   if(!info){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('Pick a group',80,300); return; }
   // ---- left info panel (slanted edge)
   const LW=700; x.save(); x.beginPath(); x.moveTo(0,10); x.lineTo(LW,10); x.lineTo(LW-70,H-10); x.lineTo(0,H-10); x.closePath(); x.fillStyle=T.side; x.fill(); x.restore();
@@ -914,14 +938,14 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
   document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); }
 function renderRoundBar(){ $('roundBar').innerHTML=S.rounds.map(r=>{ const b=bundle(r.id), total=b.roster.length, done=Object.keys(b.mres).filter(g=>Object.keys(b.mres[g]).length>=Math.max(1,+r.matches||1)).length;
   return `<button data-r="${r.id}" class="${r.id===S.round?'on':''}">${esc(r.name)}<small>${done}/${total||'–'} groups done</small></button>`; }).join(''); }
-function switchRound(r){ if(r===S.round) return; flushAllLobby(); save(); bind(r); save(); curG=null; curM=1; viewM=0; viewD=0; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
+function switchRound(r){ if(r===S.round) return; flushAllLobby(); rememberLook(); save(); bind(r); applyLook(); lookFor=r; save(); curG=null; curM=1; viewM=0; viewD=0; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
 function renderCheck(){ const c=$('checkCard'), info=roundInfo(S.round), first=S.rounds[0].id, err=S.errors[S.round], rep=S.reports[S.round];
   if(S.round===first&&!err){ c.style.display='none'; return; } c.style.display='block';
   const chips=(arr,cls,max=40)=>arr.slice(0,max).map(x=>`<span class="chip ${cls}">${esc(x)}</span>`).join('')+(arr.length>max?`<span class="chip">+${arr.length-max} more</span>`:'');
@@ -968,9 +992,9 @@ document.addEventListener('click',async e=>{
   if(t.classList.contains('g')) return selectGroup(+t.dataset.g);
   if(t.dataset.r) return switchRound(+t.dataset.r);
   if(t.dataset.m) return pickMatch(+t.dataset.m);
-  if(t.dataset.gimap!==undefined){ $('giMap').value=t.dataset.gimap; giDirty=true; return; }
-  if(t.dataset.a){ S.cfg.accent=t.dataset.a; save(); renderAll(); return; }
-  if(t.dataset.bd){ S.cfg.bd=t.dataset.bd; save(); renderPosterForm(); drawPoster(); return; }
+  if(t.dataset.gimap!==undefined){ $('giMap').value=t.dataset.gimap; renderGiMapSel(); giDirty=true; return; }
+  if(t.dataset.a){ S.cfg.accent=t.dataset.a; rememberLook(); save(); renderAll(); return; }
+  if(t.dataset.bd){ S.cfg.bd=t.dataset.bd; rememberLook(); save(); renderPosterForm(); drawPoster(); return; }
   if(t.dataset.del){ draft.rows.splice(+t.dataset.del,1); return renderDraft(); }
 });
 $('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; if(S.cfg.apiUrl) markPending(S.round+':'+curG); slotStatus(); updatePromptInfo(); });
@@ -1040,6 +1064,7 @@ $('btnEdit').onclick=()=>{ const mm=S.mres[standG]||{}, ks=Object.keys(mm); cons
   tab('desk'); selectGroup(standG); curM=m; curDay=defaultDay(standG,m); renderMatchBar(); startDraft(mm[m].rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); };
 $('btnToPoster').onclick=()=>tab('poster');
 $('pGroup').onchange=e=>{ if(S.cfg.ptype==='slots') slotG=+e.target.value; else{ standG=+e.target.value; renderStand(); } drawPoster(); };
+$('pFlair').onchange=e=>{ S.cfg.flair=e.target.checked; save(); drawPoster(); };
 $('pType').onchange=e=>{ S.cfg.ptype=e.target.value; save(); applyPType(); renderStand(); drawPoster(); };
 $('pSlotSub').oninput=e=>{ S.cfg.slotSub=e.target.value; save(); drawPoster(); };
 $('pSlotNote').oninput=e=>{ S.cfg.slotNote=e.target.value; save(); drawPoster(); };
