@@ -109,6 +109,12 @@ input[type=range]{padding:0;accent-color:var(--acc)}
 .flag{color:var(--warn);font-size:12.5px}.flag.b{color:var(--bad)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 #syncPill{cursor:pointer}
+.gi{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:6px}
+.mc{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:99px;padding:4px 14px;font:600 14px var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.mc:hover{border-color:var(--acc)}
+#poster.sMode .rOnly{display:none}
+#poster:not(.sMode) .sOnly{display:none}
+#poster.sMode #btnDlAll{display:none!important}
 .mapRow{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:6px}.mapRow select{width:auto}
 .g.part::after{background:var(--acc)}.legend .l3::before{background:var(--acc)}
 .mbar{display:flex;gap:6px;flex-wrap:wrap}.mb{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 14px;font:700 16px var(--cond);letter-spacing:.06em;cursor:pointer;min-width:58px}.mb.on{background:var(--acc);color:#111;border-color:var(--acc)}.mb.ok:not(.on){border-color:var(--ok)}
@@ -162,6 +168,18 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <div class="mbar" id="matchBar" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px"><button class="btn ghost" id="btnLoadMatch" style="display:none">Open the saved result to edit</button></div>
     </div>
+    <div class="card" id="giCard">
+      <div class="row sp"><div><h3>Group details · <span id="giTitle"></span></h3><div class="note" id="giNote"></div></div>
+        <button class="btn" id="btnSaveInfo">Save details to sheet</button></div>
+      <div class="gi">
+        <div><label class="f">Group No.</label><input id="giNo" type="number" min="1" max="999"></div>
+        <div><label class="f">Date</label><input id="giDate" type="date"></div>
+        <div><label class="f">Time</label><input id="giTime" type="time"></div>
+      </div>
+      <label class="f">Map rotation</label><input id="giMap" list="mapList" placeholder="e.g. Erangel / Miramar / Rondo">
+      <datalist id="mapList"><option value="Erangel"><option value="Miramar"><option value="Rondo"></datalist>
+      <div class="chips" id="giMapChips"></div>
+    </div>
     <div class="card">
       <div class="step"><i>2</i><div><h3>Lobby slots · <span id="gTitle"></span></h3><div class="note">Type a team name (search). Slots start at #5. Leave a slot empty if nobody sits there.</div></div></div>
       <div class="meta" id="gMeta"></div>
@@ -172,6 +190,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <div class="row">
           <span class="note" id="lobSync"></span>
           <button class="btn ghost" id="btnResetSlots">Reset to sheet order</button>
+          <button class="btn ghost" id="btnSlotPoster">Slot poster</button>
           <button class="btn" id="btnSaveLobby">Save lobby</button>
         </div>
       </div>
@@ -230,19 +249,30 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
   <div class="pgrid">
     <div class="card">
       <h2>Poster</h2>
+      <label class="f">Design</label><select id="pType"><option value="res">Result standings</option><option value="slots">Lobby slots (before the match)</option></select>
       <label class="f">Group No.</label><select id="pGroup"></select>
-      <div id="pViewWrap"><label class="f">Show</label><select id="pView"></select></div>
-      <label class="f">Teams per page</label><select id="pPer"><option value="8">8 per page · 16 teams = 2 clean pages</option><option value="16">16 on one page (compact)</option></select>
-      <div id="pPageWrap" style="display:none"><label class="f">Page</label><select id="pPage"></select></div>
+      <div class="rOnly">
+        <div id="pViewWrap"><label class="f">Show</label><select id="pView"></select></div>
+        <label class="f">Teams per page</label><select id="pPer"><option value="8">8 per page · 16 teams = 2 clean pages</option><option value="16">16 on one page (compact)</option></select>
+        <div id="pPageWrap" style="display:none"><label class="f">Page</label><select id="pPage"></select></div>
+      </div>
       <label class="f">Tournament name</label><input id="pName">
-      <label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING">
+      <div class="rOnly"><label class="f">Sub-title</label><input id="pSub" placeholder="OVERALL STANDING"></div>
+      <div class="sOnly">
+        <label class="f">Sub-title</label><input id="pSlotSub" placeholder="LOBBY SLOTS">
+        <label class="f">Map of each match</label><div class="mapRow" id="pMapRow"></div>
+        <div id="pSlotMapsWrap"><label class="f">Maps shown on the poster</label><select id="pSlotMaps"></select></div>
+        <label class="f">Bottom-left note (optional)</label><input id="pSlotNote" placeholder="e.g. Be ready 10 minutes before the match">
+      </div>
       <label class="f inl"><input type="checkbox" id="pRound"> Show round name in sub-title</label>
-      <label class="f">Teams qualifying (this group)</label><input id="pQual" type="number" min="1">
-      <label class="f">Bottom line</label><input id="pFoot" placeholder="TOP {n} QUALIFY FOR NEXT ROUND">
-      <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
+      <div class="rOnly">
+        <label class="f">Teams qualifying (this group)</label><input id="pQual" type="number" min="1">
+        <label class="f">Bottom line</label><input id="pFoot" placeholder="TOP {n} QUALIFY FOR NEXT ROUND">
+        <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
+      </div>
       <label class="f">Bottom-right line</label><input id="pCredit" placeholder="ENIGMA OPERATION LTD.">
       <label class="f">Logo (top right)</label><select id="pLogo"><option value="auto">Auto (white on dark, black on light)</option><option value="white">Always white</option><option value="black">Always black</option><option value="none">Hide logo</option></select>
-      <label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label>
+      <div class="rOnly"><label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label></div>
       <label class="f">Accent colour</label>
       <div class="sw" id="pSw"></div>
       <label class="f">Backdrop</label>
@@ -350,6 +380,8 @@ const daysN = () => Math.max(1,Math.min(14,+roundInfo(S.round).days||1));
 if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
 bind(S.round);
 let curG = null, curM = 1, curDay = 1, viewM = 0, viewD = 0, draft = null, standG = null;
+let slotG=null, giDirty=false, giOrig=null, pendSince=0, lastOwn=0, noPing=false, pollN=0, pinging=false;
+const markPending=k=>{ pendingLobby.add(k); pendSince=Date.now(); };
 const pendingLobby = new Set(); let lastSync = null, syncing = false, lastSig = '';
 const $ = id => document.getElementById(id);
 const save = () => { try{ const b=bundle(S.round); b.roster=S.roster; b.lobby=S.lobby; b.results=S.results; b.mres=S.mres; b.rules=S.rules;
@@ -362,11 +394,12 @@ function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='sh
 async function api(action, payload){
   const {apiUrl,key} = S.cfg; if(!apiUrl) throw new Error('No sheet connected');
   let r;
-  if(action==='all') r = await fetch(`${apiUrl}${apiUrl.includes('?')?'&':'?'}action=all&key=${encodeURIComponent(key)}&_=${Date.now()}`,{cache:'no-store'});
+  const read = action==='all'||action==='ping';
+  if(read) r = await fetch(`${apiUrl}${apiUrl.includes('?')?'&':'?'}action=${action}&key=${encodeURIComponent(key)}&_=${Date.now()}`,{cache:'no-store'});
   else r = await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,key,round:S.round},payload))});
-  const j = await r.json(); if(!j.ok) throw new Error(j.error||'Sheet error'); return j;
+  const j = await r.json(); if(!read) lastOwn=Date.now(); if(!j.ok) throw new Error(j.error||'Sheet error'); return j;
 }
-function setPill(){ const p=$('syncPill'); const on=!!S.cfg.apiUrl; p.textContent=on?('Sheet connected'+(lastSync?' · synced '+lastSync.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'')):'Local only'; p.className='pill '+(on?'ok':'off'); p.title=on?'Click to sync with the sheet now (it also syncs by itself every 30 s)':''; }
+function setPill(){ const p=$('syncPill'); const on=!!S.cfg.apiUrl; p.textContent=on?('Sheet connected'+(lastSync?' · synced '+lastSync.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'')):'Local only'; p.className='pill '+(on?'ok':'off'); p.title=on?'Click to sync with the sheet now (it also syncs by itself every few seconds)':''; }
 function applyData(j){
   if(j.config){ Object.assign(S.cfg,{tournament:j.config.tournament,placement:j.config.placement,kill:j.config.kill,qualify:j.config.qualify,slotMin:j.config.slotMin,slotMax:j.config.slotMax});
     if(j.config.rounds&&j.config.rounds.length) S.rounds=j.config.rounds; }
@@ -380,21 +413,30 @@ function applyData(j){
     if(rd.sync) b.roster.forEach(gr=>{ if(pendingLobby.has(rd.id+':'+gr.no)) return; const seat={}; gr.teams.forEach(t=>{ seat[t.slot]=t.name; }); b.lobby[gr.no]=seat; });   // the roster tab IS the lobby
     b.roster.forEach(gr=>(b.bench[gr.no]||[]).forEach(bt=>{ if(!gr.teams.some(t=>norm(t.name)===norm(bt.name))) gr.teams.push({slot:0,name:bt.name,email:bt.email,bench:true}); })); });
   if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
-  bind(S.round); if(curM>matchesN()) curM=matchesN(); lastSync=new Date(); save(); renderAll(); if(curG&&grp(curG)){ renderSlots(); renderMatchBar(); }
+  bind(S.round); if(curM>matchesN()) curM=matchesN(); lastSync=new Date(); if(curG&&!grp(curG)){ curG=null; draft=null; $('deskBody').style.display='none'; } save(); renderAll(); if(curG&&grp(curG)){ renderSlots(); renderMatchBar(); renderMeta(false); }
 }
+const sigOf = j => j.sig || JSON.stringify([j.rosters,j.lobby,j.results,j.rules,j.config&&j.config.rounds]);
 async function pull(quiet){
-  const j = await api('all'); lastSig=JSON.stringify([j.rosters,j.lobby,j.results,j.rules,j.config&&j.config.rounds]); applyData(j);
+  const j = await api('all'); lastSig=sigOf(j); applyData(j);
   if(!quiet){ const bad=Object.keys(S.errors);
     if(bad.length) toast(`${roundInfo(+bad[0]).name}: ${S.errors[bad[0]]}`,true);
     else toast('Loaded '+S.rounds.map(r=>`${r.name}: ${bundle(r.id).roster.length} groups`).join(' · ')); }
 }
-/* Two-way sync: the site re-reads the sheet by itself (so edits made in the sheet show up) */
+/* Two-way sync. The site asks the sheet "did anything change?" every few seconds (a tiny request) and
+   re-reads everything only when the answer is yes, so edits made directly in the sheet show up by themselves. */
 async function syncNow(manual){ if(!S.cfg.apiUrl||syncing) return; syncing=true;
-  try{ if(manual) await flushAllLobby(); const j=await api('all'); const sig=JSON.stringify([j.rosters,j.lobby,j.results,j.rules,j.config&&j.config.rounds]);
-    if(manual||sig!==lastSig){ lastSig=sig; applyData(j); if(manual) toast('Synced with the sheet ✔'); else toast('Updated from the sheet'); } else { lastSync=new Date(); setPill(); }
+  try{ if(manual) await flushAllLobby(); const j=await api('all'); const sig=sigOf(j);
+    if(manual||sig!==lastSig){ lastSig=sig; applyData(j); if(manual) toast('Synced with the sheet ✔'); else if(Date.now()-lastOwn>20000) toast('Updated from the sheet'); } else { lastSync=new Date(); setPill(); }
   }catch(e){ if(manual) toast('Sync failed: '+e.message,true); } finally{ syncing=false; } }
-setInterval(()=>{ if(document.hidden||drag||pendingLobby.size||!S.cfg.apiUrl) return; const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; syncNow(false); },30000);
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.cfg.apiUrl && !pendingLobby.size) syncNow(false); });
+async function pollTick(){
+  if(document.hidden||drag||!S.cfg.apiUrl||syncing||pinging) return;
+  if(pendingLobby.size){ if(Date.now()-pendSince>45000) pendingLobby.clear(); else return; }      // never overwrite a lobby edit that is still being saved
+  pinging=true;
+  try{ if(noPing){ if(++pollN%4===0) await syncNow(false); return; }                                // old Code.gs without "ping": full read every ~30 s
+    const j=await api('ping'); if(j.sig&&j.sig!==lastSig) await syncNow(false); else { lastSync=new Date(); setPill(); }
+  }catch(e){ if(/Unknown action/i.test(e.message)) noPing=true; } finally{ pinging=false; } }
+setInterval(pollTick,8000);
+window.addEventListener('focus',()=>pollTick()); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pollTick(); });
 
 /* =====================  HELPERS  ===================== */
 const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -434,9 +476,40 @@ function selectGroup(n){
   }
   const mm=S.mres[n]||{}, N=matchesN(); curM=1; while(curM<N&&mm[curM]) curM++; curDay=defaultDay(n,curM);
   $('deskBody').style.display='block'; renderGrid(); renderSlots(); renderMatchBar(); updatePromptInfo();
-  $('gTitle').textContent='Group '+n; $('gMeta').innerHTML=`<span>Date <b>${esc(g.date)}</b></span><span>Time <b>${esc(fmtTime(g.time))}</b></span><span>Map <b>${esc(g.map)}</b></span><span>Teams in group <b>${g.teams.length}</b></span>`;
+  renderMeta(true);
   $('teamList').innerHTML = g.teams.map(t=>`<option value="${esc(t.name)}">`).join('');
 }
+const clock24=t=>{ const m=/(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)/i.exec(t||''); if(m){ let h=(+m[1])%12; if(/p/i.test(m[3])) h+=12; return String(h).padStart(2,'0')+':'+m[2]; } const q=/^\s*(\d{1,2}):(\d{2})/.exec(t||''); return q&&+q[1]<24?String(+q[1]).padStart(2,'0')+':'+q[2]:''; };
+const isoDate=t=>{ const m=/^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*$/.exec(t||''); return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:''; };
+const sheetDate=iso=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); return m?`${m[3]}/${m[2]}/${m[1]}`:''; };
+const composeTime=(raw,n)=>{ const c=clock24(raw); if(!c) return raw; const [h,m]=c.split(':').map(Number), h12=h%12===0?12:h%12; return `${h12}:${String(m).padStart(2,'0')}:00 ${h>=12?'PM':'AM'} ${n} Match${n>1?'es':''}`; };
+function renderMeta(force){ if(!curG) return; const g=grp(curG); if(!g) return;
+  $('gTitle').textContent='Group '+curG; $('gMeta').innerHTML=`<span>Date <b>${esc(g.date)}</b></span><span>Time <b>${esc(fmtTime(g.time))}</b></span><span>Map <b>${esc(g.map)}</b></span><span>Teams in group <b>${g.teams.filter(t=>t.slot>0).length}</b></span>`;
+  $('teamList').innerHTML = g.teams.map(t=>`<option value="${esc(t.name)}">`).join(''); renderGroupInfo(force); }
+function renderGroupInfo(force){ const g=grp(curG); if(!g) return; if(giDirty&&giOrig&&giOrig.no===curG&&!force) return;     // never overwrite what the admin is typing
+  const rd=roundInfo(S.round), editable=!S.cfg.apiUrl||!!rd.sync; giOrig={no:curG,date:isoDate(g.date),time:clock24(g.time),map:g.map||''}; giDirty=false;
+  $('giTitle').textContent='Group '+curG; $('giNo').value=curG; $('giDate').value=giOrig.date; $('giTime').value=giOrig.time; $('giMap').value=giOrig.map;
+  ['giNo','giDate','giTime','giMap','btnSaveInfo'].forEach(i=>$(i).disabled=!editable);
+  const rot=mapText(Array.from({length:matchesN()},(_,i)=>i+1));
+  $('giMapChips').innerHTML=editable?MAPS.map(m=>`<button class="mc" data-gimap="${esc(m)}">${esc(m)}</button>`).join('')+(rot&&rot!==MAPS.find(m=>m===rot)?`<button class="mc" data-gimap="${esc(rot)}">Round rotation · ${esc(rot)}</button>`:''):'';
+  $('giNote').textContent=!editable?`${rd.name} is locked: its sheet tab is not written by the website.`:(S.cfg.apiUrl?'Written into the roster tab of the sheet. Boxes you do not touch stay as they are. The "Match" count after the time follows Round format.':'Not connected to the sheet: changes stay on this device.')+(g.date&&!giOrig.date?` The current date "${g.date}" is not dd/mm/yyyy; pick a date to replace it.`:''); }
+['giNo','giDate','giTime','giMap'].forEach(id=>$(id).addEventListener('input',()=>{ giDirty=true; }));
+function renameLocal(a,b){ const bd=bundle(S.round); [S.lobby,S.mres,S.rules,bd.bench].forEach(o=>{ if(o&&o[a]!==undefined){ o[b]=o[a]; delete o[a]; } }); const g=grp(a); if(g) g.no=b; S.roster.sort((x,y)=>x.no-y.no); recompute(bd); if(standG===a) standG=b; if(slotG===a) slotG=b; if(curG===a) curG=b; }
+async function saveGroupDetails(){ const g=grp(curG); if(!g||!giOrig) return; const o={};
+  const nn=Math.floor(+$('giNo').value); if(nn&&nn!==curG) o.newNo=nn;
+  const d=$('giDate').value; if(d&&d!==giOrig.date) o.date=sheetDate(d);
+  const t=$('giTime').value; if(t&&t!==giOrig.time) o.time=t;
+  const mp=$('giMap').value.trim(); if(mp&&mp!==giOrig.map) o.map=mp;
+  if(!Object.keys(o).length) return toast('Nothing changed');
+  if(o.newNo&&(o.newNo<1||o.newNo>999||S.roster.some(x=>x.no===o.newNo))) return toast(`Group ${o.newNo} already exists or is not a valid number`,true);
+  const old=curG, keep=o.newNo||old; $('btnSaveInfo').disabled=true;
+  try{
+    if(S.cfg.apiUrl){ await flushAllLobby(); await api('saveGroup',Object.assign({group:old},o));
+      if(o.newNo){ if(standG===old) standG=keep; if(slotG===old) slotG=keep; curG=keep; delete S.lobby[old]; delete S.mres[old]; }
+      giDirty=false; await pull(true); renderGrid(); renderMeta(true); toast(`Group ${keep} details saved to the sheet ✔`); }
+    else{ if(o.date) g.date=o.date; if(o.time) g.time=composeTime(o.time,matchesN()); if(o.map) g.map=o.map; if(o.newNo) renameLocal(old,keep); giDirty=false; save(); renderAll(); renderGrid(); renderMeta(true); toast(`Group ${keep} details saved on this device`); }
+  }catch(e){ toast('Not saved: '+e.message,true); } finally{ $('btnSaveInfo').disabled=false; } }
+$('btnSaveInfo').onclick=saveGroupDetails;
 function slotErrors(){ // returns {slot: msg}
   const g=grp(curG), L=S.lobby[curG]||{}, seen={}, err={};
   Object.keys(L).forEach(s=>{ const v=L[s]; if(!v) return;
@@ -471,7 +544,7 @@ function renderMatchBar(){ if(!curG) return; const N=matchesN(), mm=S.mres[curG]
 function pickMatch(m){ curM=m; draft=null; $('draftCard').style.display='none'; $('paste').value=''; curDay=defaultDay(curG,m); renderMatchBar(); updatePromptInfo(); }
 const lobTimers={}; const setLob=t=>{ const e=$('lobSync'); if(e) e.textContent=t; };
 function benchFor(g){ const used=new Set(lobbyTeams(g).map(t=>norm(t.name))); return ((grp(g)||{}).teams||[]).filter(t=>!used.has(norm(t.name))).map(t=>({name:t.name,email:t.email||''})); }
-function queueLobbySave(g,now){ save(); if(!S.cfg.apiUrl) return; const key=S.round+':'+g; pendingLobby.add(key); setLob('Saving…'); clearTimeout(lobTimers[key]); lobTimers[key]=setTimeout(()=>flushLobby(g),now?0:900); }
+function queueLobbySave(g,now){ save(); if(!S.cfg.apiUrl) return; const key=S.round+':'+g; markPending(key); setLob('Saving…'); clearTimeout(lobTimers[key]); lobTimers[key]=setTimeout(()=>flushLobby(g),now?0:900); }
 async function flushLobby(g){ const key=S.round+':'+g; clearTimeout(lobTimers[key]); if(!pendingLobby.has(key)) return;
   try{ await api('saveLobby',{group:g,slots:lobbyPayloadFor(g),bench:benchFor(g)}); pendingLobby.delete(key); setLob('Saved to sheet ✔ '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})); }
   catch(e){ setLob('Not saved ✖'); toast('Lobby not saved to sheet: '+e.message,true); } }
@@ -597,10 +670,12 @@ async function saveResult(){
 }
 
 /* =====================  STANDINGS  ===================== */
+function fillPGroup(){ const gs=S.roster.map(g=>g.no); if(!gs.includes(slotG)) slotG=gs.includes(curG)?curG:(gs[0]??null);
+  $('pGroup').innerHTML=gs.map(g=>`<option value="${g}">Group ${g}</option>`).join('')||'<option value="">No groups</option>'; $('pGroup').value=slotG??''; }
 function standOptions(){ const done=Object.keys(S.results).map(Number).sort((a,b)=>a-b);
   const html=done.map(g=>`<option value="${g}">Group ${g}</option>`).join('')||'<option value="">No results yet</option>';
   $('standGroup').innerHTML=html; if(!done.includes(standG)) standG=done[0]??null; $('standGroup').value=standG??'';
-  $('pGroup').innerHTML=html; $('pGroup').value=standG??'';
+  $('pGroup').innerHTML=html; $('pGroup').value=standG??''; if(S.cfg.ptype==='slots') fillPGroup();
   const N=matchesN(), mm=S.mres[standG]||{}, ks=Object.keys(mm).map(Number).sort((a,b)=>a-b); if(!mm[viewM]) viewM=0;
   const dset={}; ks.forEach(k=>{ const d=mm[k].day||0; if(d) (dset[d]=dset[d]||[]).push(k); }); const ds=Object.keys(dset).map(Number).sort((a,b)=>a-b); if(!dset[viewD]) viewD=0;
   const opts=`<option value="0">Overall standing${N>1?` · after ${ks.length}/${N} matches`:''}</option>`+
@@ -688,7 +763,8 @@ function drawPicture(x,W,H,img,bd,dark){
     const gr=x.createLinearGradient(W*.42,0,W*.8,0); gr.addColorStop(0,bd.c1); gr.addColorStop(1,hexA(bd.c1,0)); x.fillStyle=gr; x.fillRect(W*.42,0,W*.4,H); }
 }
 let drawing=0;
-async function drawPoster(){
+function drawPoster(){ return S.cfg.ptype==='slots'?drawSlotPoster():drawResultPoster(); }
+async function drawResultPoster(){
   const my=++drawing, cv=$("cv"), x=cv.getContext('2d'), W=1920, H=1080, acc=S.cfg.accent;
   const bd=BACKDROPS.find(b=>b.id===S.cfg.bd)||BACKDROPS[0], dark=bd.mode==='dark';
   const T={txt:dark?'#ffffff':'#0e1220', sub:dark?'rgba(255,255,255,.80)':'rgba(14,18,32,.74)',
@@ -761,6 +837,66 @@ async function drawPoster(){
   const cr=(S.cfg.credit||'').trim(); if(cr){ x.font='700 28px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),W-60,1046); }
   x.letterSpacing='0px'; x.textAlign='left';
 }
+function slotMapItems(N,info){ const sel=S.cfg.slotMaps||'all';
+  if(sel[0]==='m'&&N>1){ const m=+sel.slice(1); return [{k:'MATCH '+m,v:mapOf(m)||'TBA'}]; }
+  if(N===1) return [{k:'MAP',v:mapOf(1)||info?.map||'TBA'}];
+  return Array.from({length:N},(_,i)=>({k:'MATCH '+(i+1),v:mapOf(i+1)||'TBA'})); }
+async function drawSlotPoster(){
+  const my=++drawing, cv=$("cv"), x=cv.getContext('2d'), W=1920, H=1080, acc=S.cfg.accent;
+  const bd=BACKDROPS.find(b=>b.id===S.cfg.bd)||BACKDROPS[0], dark=bd.mode==='dark';
+  const T={txt:dark?'#ffffff':'#0e1220', sub:dark?'rgba(255,255,255,.78)':'rgba(14,18,32,.72)',
+    panel:dark?'rgba(255,255,255,.09)':'rgba(255,255,255,.82)', side:dark?'rgba(0,0,0,.42)':'rgba(255,255,255,.72)',
+    accTxt:dark?acc:shade(acc,.40), edge:dark?'rgba(255,255,255,.09)':'rgba(14,18,32,.12)'};
+  const g=slotG, info=grp(g), N=matchesN();
+  try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
+  const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
+  const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
+  $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded. Drawing without it.' : '';
+  x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
+  drawBackdrop(x,W,H,bd,acc); if(img) drawPicture(x,W,H,img,bd,dark);
+  x.fillStyle=acc; x.fillRect(0,0,W,10); x.fillRect(0,H-10,W,10);
+  if(!info){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('Pick a group',80,300); return; }
+  // ---- left info panel (slanted edge)
+  const LW=700; x.save(); x.beginPath(); x.moveTo(0,10); x.lineTo(LW,10); x.lineTo(LW-70,H-10); x.lineTo(0,H-10); x.closePath(); x.fillStyle=T.side; x.fill(); x.restore();
+  x.save(); x.beginPath(); x.moveTo(LW,10); x.lineTo(LW+14,10); x.lineTo(LW-56,H-10); x.lineTo(LW-70,H-10); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
+  const rn=S.cfg.showRound?roundInfo(S.round).name:'', sub=[rn,S.cfg.slotSub==null?'LOBBY SLOTS':S.cfg.slotSub].filter(Boolean).join('  ·  ').toUpperCase();
+  x.fillStyle=T.accTxt; x.font='700 30px "Barlow Condensed"'; x.letterSpacing='7px'; x.fillText(sub,70,92); x.letterSpacing='0px';
+  // tournament name, up to 2 lines
+  const name=(S.cfg.tournament||'TOURNAMENT').toUpperCase(), words=name.split(/\s+/); let l1=name,l2='';
+  x.font='400 90px Anton'; if(x.measureText(name).width>560&&words.length>1){ let best=1,bd2=1e9; for(let i=1;i<words.length;i++){ const a=words.slice(0,i).join(' '),b=words.slice(i).join(' '); const d=Math.abs(x.measureText(a).width-x.measureText(b).width); if(d<bd2){ bd2=d; best=i; } } l1=words.slice(0,best).join(' '); l2=words.slice(best).join(' '); }
+  const fs=Math.min(fitText(x,l1,560,92,{w:'400',f:'Anton'}),l2?fitText(x,l2,560,92,{w:'400',f:'Anton'}):99); x.fillStyle=T.txt; x.font=`400 ${fs}px Anton`; x.fillText(l1,66,92+fs*1.02); if(l2) x.fillText(l2,66,92+fs*2.04);
+  let y=92+fs*(l2?2.04:1.02)+24; x.fillStyle=acc; x.fillRect(70,y,130,8); y+=34;
+  // group number
+  x.fillStyle=T.sub; x.font='700 34px "Barlow Condensed"'; x.letterSpacing='14px'; x.fillText('GROUP',72,y+34); x.letterSpacing='0px';
+  x.fillStyle=acc; x.font='400 250px Anton'; x.fillText(String(g).padStart(2,'0'),60,y+250); y+=250+34;
+  // date / time
+  const bw=520, rowBox=(k,v,yy,h)=>{ x.save(); rrPath(x,70,yy,bw,h,10); x.fillStyle=T.panel; x.fill(); x.lineWidth=1.5; x.strokeStyle=T.edge; x.stroke(); x.restore(); x.fillStyle=acc; x.fillRect(70,yy,7,h);
+    x.fillStyle=T.sub; x.font='600 20px "Barlow Condensed"'; x.letterSpacing='4px'; x.fillText(k,98,yy+h/2+7); x.letterSpacing='0px'; x.fillStyle=T.txt; x.textAlign='right'; const s2=fitText(x,v,bw-210,40,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${s2}px "Barlow Condensed"`; x.fillText(v,70+bw-24,yy+h/2+s2*.34); x.textAlign='left'; };
+  const items=slotMapItems(N,info), tail=Math.min(items.length,6), h=items.length>3?44:54;
+  rowBox('DATE',info.date||'TBA',y,58); y+=66; rowBox('TIME',fmtTime(info.time)||'TBA',y,58); y+=66;
+  items.slice(0,tail).forEach(it=>{ rowBox(it.k,String(it.v).toUpperCase(),y,h); y+=h+8; });
+  if(items.length>tail){ x.fillStyle=T.sub; x.font='600 22px "Barlow Condensed"'; x.fillText('+ '+(items.length-tail)+' more matches',72,y+22); }
+  if(logoImg){ const mw=300,mh=70,k=Math.min(mw/logoImg.width,mh/logoImg.height),lw=logoImg.width*k,lh=logoImg.height*k; x.drawImage(logoImg,70,H-40-lh,lw,lh); }
+  // ---- right: slot grid
+  const rx=LW+70, rw=W-rx-60, smin=S.cfg.slotMin, smax=S.cfg.slotMax, cnt=Math.max(1,smax-smin+1), cols=cnt>8?2:1, per=Math.ceil(cnt/cols);
+  x.fillStyle=T.txt; x.font='400 76px Anton'; x.fillText('SLOT LIST',rx,112);
+  const teams=lobbyTeams(g), by={}; teams.forEach(t=>{ by[t.slot]=t.name; });
+  const filled=Array.from({length:cnt},(_,i)=>by[smin+i]).filter(Boolean).length;
+  x.textAlign='right'; x.fillStyle=T.accTxt; x.font='700 30px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillText(`${filled} / ${cnt} TEAMS`,W-60,108); x.letterSpacing='0px'; x.textAlign='left';
+  const top=150, bottom=H-70, gap=14, cgap=24, cw=(rw-cgap*(cols-1))/cols, rh=Math.min(104,(bottom-top-gap*(per-1))/per);
+  for(let i=0;i<cnt;i++){ const s=smin+i, c=Math.floor(i/per), r=i%per, cx=rx+c*(cw+cgap), cy=top+r*(rh+gap), nm=by[s];
+    x.save(); rrPath(x,cx,cy,cw,rh,12); x.fillStyle=nm?T.panel:(dark?'rgba(255,255,255,.04)':'rgba(255,255,255,.4)'); x.fill(); x.lineWidth=1.5; x.strokeStyle=T.edge; x.stroke(); x.restore();
+    const nw=rh*1.05; x.save(); rrPath(x,cx,cy,nw,rh,12); x.fillStyle=nm?acc:(dark?'rgba(255,255,255,.14)':'rgba(14,18,32,.14)'); x.fill(); x.restore();
+    x.textBaseline='middle'; x.textAlign='center'; x.fillStyle=nm?ink(acc):T.sub; x.font=`400 ${rh*.52}px Anton`; x.fillText('#'+s,cx+nw/2,cy+rh/2+2);
+    x.textAlign='left'; if(nm){ x.fillStyle=T.txt; const f=fitText(x,nm.toUpperCase(),cw-nw-40,Math.min(46,rh*.5),{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${f}px "Barlow Condensed"`; x.fillText(nm.toUpperCase(),cx+nw+20,cy+rh/2+2); }
+    else{ x.fillStyle=T.sub; x.globalAlpha=.55; x.font=`600 ${rh*.3}px "Barlow Condensed"`; x.letterSpacing='4px'; x.fillText('OPEN SLOT',cx+nw+20,cy+rh/2+2); x.letterSpacing='0px'; x.globalAlpha=1; }
+    x.textBaseline='alphabetic'; }
+  // footer
+  x.textBaseline='alphabetic'; const note=(S.cfg.slotNote||'').trim(); x.textAlign='left'; x.fillStyle=T.sub; x.font='600 24px "Barlow Condensed"'; x.letterSpacing='3px'; if(note) x.fillText(note.toUpperCase(),rx,H-30);
+  const cr=(S.cfg.credit||'').trim(); if(cr){ x.textAlign='right'; x.font='700 26px "Barlow Condensed"'; x.letterSpacing='5px'; x.fillStyle=T.accTxt; x.fillText(cr.toUpperCase(),W-60,H-30); }
+  x.letterSpacing='0px'; x.textAlign='left';
+}
+
 function canvasBlob(){ return new Promise((res,rej)=>{ try{ $("cv").toBlob(b=>b?res(b):rej(new Error('empty')),'image/png'); }catch(e){ rej(e); } }); }
 
 /* =====================  SETTINGS / WIRING  ===================== */
@@ -778,7 +914,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -832,11 +968,12 @@ document.addEventListener('click',async e=>{
   if(t.classList.contains('g')) return selectGroup(+t.dataset.g);
   if(t.dataset.r) return switchRound(+t.dataset.r);
   if(t.dataset.m) return pickMatch(+t.dataset.m);
+  if(t.dataset.gimap!==undefined){ $('giMap').value=t.dataset.gimap; giDirty=true; return; }
   if(t.dataset.a){ S.cfg.accent=t.dataset.a; save(); renderAll(); return; }
   if(t.dataset.bd){ S.cfg.bd=t.dataset.bd; save(); renderPosterForm(); drawPoster(); return; }
   if(t.dataset.del){ draft.rows.splice(+t.dataset.del,1); return renderDraft(); }
 });
-$('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; if(S.cfg.apiUrl) pendingLobby.add(S.round+':'+curG); slotStatus(); updatePromptInfo(); });
+$('slots').addEventListener('input',e=>{ const s=e.target.dataset.s; if(!s) return; const v=e.target.value.trim(); (S.lobby[curG]=S.lobby[curG]||{})[s]=v; if(S.cfg.apiUrl) markPending(S.round+':'+curG); slotStatus(); updatePromptInfo(); });
 $('slots').addEventListener('change',e=>{ const s=e.target.dataset.s; if(!s) return; const c=canon(e.target.value.trim()); e.target.value=c; S.lobby[curG][s]=c; slotStatus(); updatePromptInfo(); queueLobbySave(curG); });
 /* ---------- drag & drop (mouse + touch) ---------- */
 let drag=null;
@@ -885,8 +1022,13 @@ $('dayNo').onchange=e=>{ curDay=+e.target.value; if(draft) draft.day=curDay; };
 $('btnLoadMatch').onclick=()=>{ const x=(S.mres[curG]||{})[curM]; if(!x) return; startDraft(x.rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); $('draftCard').scrollIntoView({behavior:'smooth'}); };
 $('syncPill').onclick=()=>{ if(S.cfg.apiUrl) syncNow(true); };
 function renderMapRow(){ const N=matchesN(), ms=roundInfo(S.round).maps||[]; $('mapNote').textContent=N>1?'Map of each match (e.g. Erangel → Miramar → Rondo). It is written into the sheet and shown on results and posters.':'Map of this match. It is written into the sheet and shown on the poster.';
-  $('mapRow').innerHTML=[...Array(N)].map((_,i)=>{ const v=ms[i]||'', opts=MAPS.includes(v)||!v?MAPS:MAPS.concat(v); return `<label class="inl note">${N>1?'M'+(i+1):'Map'} <select data-map="${i}"><option value="">—</option>${opts.map(m=>`<option ${m===v?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`; }).join(''); }
-$('mapRow').onchange=()=>{ const N=matchesN(); setFormat({maps:[...document.querySelectorAll('#mapRow select')].map(e=>e.value).slice(0,N)}); };
+  const html=[...Array(N)].map((_,i)=>{ const v=ms[i]||'', opts=MAPS.includes(v)||!v?MAPS:MAPS.concat(v); return `<label class="inl note">${N>1?'M'+(i+1):'Map'} <select data-map="${i}"><option value="">—</option>${opts.map(m=>`<option ${m===v?'selected':''}>${esc(m)}</option>`).join('')}</select></label>`; }).join('');
+  $('mapRow').innerHTML=html; $('pMapRow').innerHTML=html; }
+const mapChange=e=>{ const N=matchesN(); setFormat({maps:[...e.currentTarget.querySelectorAll('select')].map(el=>el.value).slice(0,N)}); };
+$('mapRow').onchange=mapChange; $('pMapRow').onchange=mapChange;
+function fillSlotMapsSelect(){ const N=matchesN(); let h='<option value="all">All matches (rotation)</option>'; for(let m=1;m<=N;m++) if(mapOf(m)) h+=`<option value="m${m}">${N>1?'Match '+m+' · ':''}${esc(mapOf(m))} only</option>`;
+  $('pSlotMaps').innerHTML=h; if(![...$('pSlotMaps').options].some(o=>o.value===(S.cfg.slotMaps||'all'))) S.cfg.slotMaps='all'; $('pSlotMaps').value=S.cfg.slotMaps||'all'; $('pSlotMapsWrap').style.display=N>1?'':'none'; }
+const applyPType=()=>$('poster').classList.toggle('sMode',S.cfg.ptype==='slots');
 async function setFormat(o){ const ri=roundInfo(S.round); if(!S.rounds.some(r=>r.id===S.round)) S.rounds.push(ri); if(o.matches) ri.matches=o.matches; if(o.days) ri.days=o.days;
   if(o.matches){ ri.maps=(ri.maps||[]).slice(0,o.matches); while(ri.maps.length<o.matches) ri.maps.push(''); o.maps=ri.maps.slice(); } else if(o.maps) ri.maps=o.maps; save(); renderAll(); if(curG) renderMatchBar();
   const txt=`${ri.name}: ${matchesN()} match${matchesN()>1?'es':''} · ${daysN()} day${daysN()>1?'s':''}${mapText(Array.from({length:matchesN()},(_,i)=>i+1))?' · '+mapText(Array.from({length:matchesN()},(_,i)=>i+1)):''}`; if(!S.cfg.apiUrl) return toast(txt);
@@ -897,7 +1039,12 @@ $('btnCsv').onclick=()=>{ const csv=tsv(viewRes(standG).rows,!viewM).split('\n')
 $('btnEdit').onclick=()=>{ const mm=S.mres[standG]||{}, ks=Object.keys(mm); const m=viewM||(ks.length===1?+ks[0]:0); if(!m) return toast('Choose one match in the “View” box first, then click Edit',true);
   tab('desk'); selectGroup(standG); curM=m; curDay=defaultDay(standG,m); renderMatchBar(); startDraft(mm[m].rows.map(r=>({pos:r.pos,slot:r.slot,kills:r.kills})),true); };
 $('btnToPoster').onclick=()=>tab('poster');
-$('pGroup').onchange=e=>{ standG=+e.target.value; renderStand(); drawPoster(); };
+$('pGroup').onchange=e=>{ if(S.cfg.ptype==='slots') slotG=+e.target.value; else{ standG=+e.target.value; renderStand(); } drawPoster(); };
+$('pType').onchange=e=>{ S.cfg.ptype=e.target.value; save(); applyPType(); renderStand(); drawPoster(); };
+$('pSlotSub').oninput=e=>{ S.cfg.slotSub=e.target.value; save(); drawPoster(); };
+$('pSlotNote').oninput=e=>{ S.cfg.slotNote=e.target.value; save(); drawPoster(); };
+$('pSlotMaps').onchange=e=>{ S.cfg.slotMaps=e.target.value; save(); drawPoster(); };
+$('btnSlotPoster').onclick=()=>{ if(!curG) return; S.cfg.ptype='slots'; slotG=curG; save(); renderPosterForm(); tab('poster'); };
 $('pPer').onchange=e=>{ S.cfg.perPage=+e.target.value; pageIdx=0; save(); renderStand(); drawPoster(); };
 $('pPage').onchange=e=>{ pageIdx=+e.target.value; drawPoster(); };
 $('pName').oninput=e=>{ S.cfg.tournament=e.target.value; save(); $('brandName').textContent=S.cfg.tournament; drawPoster(); };
@@ -915,7 +1062,7 @@ $('sQualG').oninput=e=>setQualify(standG,e.target.value);
 $('dQual').oninput=e=>{ const n=Math.floor(+e.target.value); if(draft&&n>=1){ draft.qualify=Math.min(n,99); renderDraft(); } };
 $('pImgUrl').onchange=e=>{ S.cfg.imgUrl=e.target.value.trim(); save(); drawPoster(); };
 const pgTag=()=>pageCount()>1?`-p${pageIdx+1}`:'';
-async function dlCurrent(){ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${standG}-${viewTag()}${pgTag()}.png`; a.click(); }
+async function dlCurrent(){ const b=await canvasBlob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${S.cfg.tournament.replace(/\W+/g,'-')}-r${S.round}-group-${S.cfg.ptype==='slots'?slotG+'-slots':standG+'-'+viewTag()+pgTag()}.png`; a.click(); }
 $('btnDl').onclick=async()=>{ try{ await dlCurrent(); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } };
 $('btnDlAll').onclick=async()=>{ const keep=pageIdx, pc=pageCount(); try{ for(let i=0;i<pc;i++){ pageIdx=i; await drawPoster(); await dlCurrent(); await new Promise(r=>setTimeout(r,450)); } toast(`${pc} pages downloaded`); }catch(e){ toast('Browser blocked export because of the background picture. Pick “None” or another image.',true); } pageIdx=keep; $('pPage').value=String(keep); drawPoster(); };
 $('btnCopyImg').onclick=async()=>{ try{ const b=await canvasBlob(); await navigator.clipboard.write([new ClipboardItem({'image/png':b})]); toast('Image copied'); }catch(e){ toast('Copy not available here. Use Download PNG',true); } };
