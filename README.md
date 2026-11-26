@@ -80,3 +80,9 @@ The three folders you made are already in Code.gs: `PHOTO_FOLDER_ID` = Team Phot
 - **Team Photos, option B – individual players (recommended):** make a sub-folder named after the team (`KH Esports`) and put one picture per player in it, file name = player name (`Sabbir.png`, `Rafi.png`). Put a number first to fix the order: `1 Sabbir.png`, `2 Rafi.png`. Transparent PNG cutouts, head to waist, about 700×1000 px, under 6 MB each. Any number of players is fine.
 
 **On the poster:** Photo type = "Individual players" shows a tick-box per player of the 1st-place team; tick the 4–6 you want (the first 5 are ticked by default). They are placed side by side with the middle one in front. The team logo appears next to the team name in the hero panel. Only the pictures of the team that is shown are downloaded. "Refresh photo list from Drive" picks up newly uploaded files (otherwise the list refreshes itself every 5 minutes).
+
+## v6.2 – photo frames + per-player editing
+Poster tab → Photo type "Individual players":
+- **Photo frames:** "Equal photo cards" (default, every player in a card of the same size – best for pictures with a background) or "Cut-outs side by side" (transparent PNGs standing next to each other).
+- **Edit positions** (tick the box): click a player on the poster, drag to move the picture inside its card, mouse wheel (or the Size slider) to zoom. The sliders under it move Left/Right and Up/Down precisely. "◀ Earlier / Later ▶" changes the player's place in the row. "Reset this player" / "Reset all" go back to automatic. The blue outline is only on screen, never in the downloaded PNG.
+- Adjustments are remembered per team and per player on this device/browser.
