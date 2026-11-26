@@ -58,3 +58,15 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 - Group details: Map rotation now has one dropdown per match (Match 1 Erangel, Match 2 Rondo …) and is written as `Erangel / Rondo`.
 - Round 3 look: Blood Moon backdrop, red accent, hazard-stripe frame + corner brackets ("Elite frame" checkbox in Poster). New backdrops: Blood Moon, Neon Teal. Each round remembers its own backdrop/colour.
 - Update: replace all of Code.gs (set ADMIN_KEY), Deploy → New version; replace index.html; Ctrl+F5.
+
+## v6 – Broadcast result poster + Drive team photos
+**Update:** replace all of Code.gs (set `ADMIN_KEY` again), set `PHOTO_FOLDER_ID` (below), Deploy → Manage deployments → pencil → New version. Replace index.html, Ctrl+F5.
+
+**Poster tab → Layout "Broadcast poster 4:5"** (1440×1800): big stage title (e.g. SEMI FINALS), "OVERALL RANKING · GROUP 49", hero panel (photo of one team + WWCD / PLACE PTS / ELIMS / TOTAL PTS + #rank + team name), 8+8 two-column table, "WATCH ACTION LIVE ON" + qualify line, date/time/map and credit. More than 16 teams → extra pages. The old 16:9 layout is still there ("Wide"). New backdrops: Violet Gold, Navy Red.
+
+**Drive photos (fetched one team at a time):**
+1. In Google Drive create a folder (e.g. "A1RG Team Photos") with the same Google account that owns the Apps Script. Open it and copy the id from the link: `drive.google.com/drive/folders/THIS_PART`.
+2. Paste it in Code.gs: `PHOTO_FOLDER_ID: 'THIS_PART'`. In the Apps Script editor choose the function `photoList_` and press Run once, and accept the Drive permission. Then redeploy as a New version.
+3. Put one picture per team in that folder, named after the team: `kh-esports.png`. Capitals, spaces and symbols do not matter (`KH Esports.png` works too) – the name just has to match the team name in the sheet. Optional logo files `kh-esports-logo.png` are already recognised by the server but not drawn on the poster yet.
+4. Picture tips: a wide squad photo, about 1600×500 px, players cut out on a transparent PNG (or a normal JPG), feet at the bottom edge, under 6 MB (1–2 MB is ideal).
+5. On the poster the site automatically asks Drive only for the team in 1st place. The "Team photo" box lets you pick any other team or "No photo". Added a new photo while the site is open? Press "Refresh photo list from Drive".
