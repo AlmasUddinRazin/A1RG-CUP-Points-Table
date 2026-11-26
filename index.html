@@ -265,6 +265,7 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
       <div class="cOnly">
         <label class="f">Big title (stage)</label><input id="pStage" placeholder="SEMI FINALS">
         <label class="f">Watch live on (optional)</label><input id="pLive" placeholder="e.g. RG ESPORTS INC">
+        <label class="f inl"><input type="checkbox" id="pHero"> Show photo frame (team photo + top-team stats)</label>
         <label class="f">Team photo</label><select id="pPhoto"></select>
         <div class="note" id="pPhotoStat"></div>
         <button class="btn ghost" id="btnPhotoRefresh" style="margin-top:6px">Refresh photo list from Drive</button>
@@ -959,9 +960,9 @@ async function drawCastPoster(){
   let heroRow=null, heroName=null, photo=null;
   if(res){ const sorted=res.rows.slice().sort((a,b)=>a.rank-b.rank); fillPhotoSel(sorted); const sel=S.cfg.photoSel||'auto';
     heroName=sel==='none'?null:(sel==='auto'?sorted[0]?.team:sel); heroRow=sorted.find(r=>norm(r.team)===norm(heroName))||sorted[0];
-    if(heroName){ photo=await teamPhoto(heroName,'photo'); if(my!==drawing) return; } }
+    if(heroName&&S.cfg.hero!==false){ photo=await teamPhoto(heroName,'photo'); if(my!==drawing) return; } }
   $('pNote').textContent=posterImgUrl()&&!img?'Background picture could not be loaded. Drawing without it.':'';
-  $('pPhotoStat').textContent=!res?'':(!heroName?'No photo is used.':!S.cfg.apiUrl?'Connect the sheet to use the Drive photos.':photoErr?'Photo problem: '+photoErr:photo?`Photo of ${heroName} loaded from Drive ✔`:`No photo for "${heroName}" in the Drive folder. Name the file  ${slugOf(heroName)}.png`);
+  $('pPhotoStat').textContent=!res?'':(S.cfg.hero===false?'Photo frame is off: the table uses the full height.':!heroName?'No photo is used.':!S.cfg.apiUrl?'Connect the sheet to use the Drive photos.':photoErr?'Photo problem: '+photoErr:photo?`Photo of ${heroName} loaded from Drive ✔`:`No photo for "${heroName}" in the Drive folder. Name the file  ${slugOf(heroName)}.png`);
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc); if(img) drawPicture(x,W,H,img,bd,dark);
   drawFrame(x,W,H,acc,dark);
@@ -982,10 +983,11 @@ async function drawCastPoster(){
   { x.save(); x.translate(W/2,500); x.transform(1,0,-.16,1,0,0); const f=`italic 700 74px "Barlow Condensed"`; x.font=f; x.letterSpacing='1px'; const a=kindTxt, b='GROUP '+g, gap=26, wa=x.measureText(a).width, wb=x.measureText(b).width, tot=wa+gap+wb, sc=Math.min(1,1250/tot);
     x.scale(sc,1); x.textAlign='left'; x.fillStyle=T.accTxt; x.fillText(a,-tot/2,0); x.fillStyle=dark?'#dfe3ee':'#3a4262'; x.fillText(b,-tot/2+wa+gap,0); x.restore(); }
   // ---- hero panel
-  const hx=70, hy=560, hw=1300, hh=280, pw=740;
+  const hx=70, hy=560, hw=1300, hh=280, pw=740, hero=S.cfg.hero!==false;
+  if(hero){
   x.save(); rrPath(x,hx,hy,hw,hh,6); x.fillStyle=T.panel; x.fill(); x.lineWidth=2; x.strokeStyle=hexA(acc,.7); x.stroke(); x.clip();
   x.save(); x.beginPath(); x.moveTo(hx,hy); x.lineTo(hx+pw,hy); x.lineTo(hx+pw-44,hy+hh); x.lineTo(hx,hy+hh); x.closePath(); x.clip();
-  if(photo){ const zw=pw, r=Math.max(zw/photo.width,hh/photo.height), w=photo.width*r, h=photo.height*r; x.drawImage(photo,hx+(zw-w)/2,hy+hh-h,w,h); const fd=x.createLinearGradient(hx+pw-220,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.55)':'rgba(255,255,255,.35)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
+  if(photo){ const zw=pw-30, r=Math.min(zw/photo.width,(hh*1.12)/photo.height), w=photo.width*r, h=photo.height*r; x.drawImage(photo,hx+(pw-w)/2-10,hy+hh-h,w,h); const fd=x.createLinearGradient(hx+pw-220,0,hx+pw,0); fd.addColorStop(0,'rgba(0,0,0,0)'); fd.addColorStop(1,dark?'rgba(8,10,34,.55)':'rgba(255,255,255,.35)'); x.fillStyle=fd; x.fillRect(hx,hy,pw,hh); }
   else { x.fillStyle=hexA(acc,.10); x.fillRect(hx,hy,pw,hh); x.fillStyle=hexA(acc,.20); x.font='400 300px Anton'; x.textAlign='center'; x.fillText('#'+(heroRow?heroRow.rank:1),hx+pw/2-20,hy+hh-10); x.textAlign='left'; }
   x.restore();
   x.save(); x.beginPath(); x.moveTo(hx+pw+18,hy); x.lineTo(hx+hw,hy); x.lineTo(hx+hw,hy+hh); x.lineTo(hx+pw-26,hy+hh); x.closePath(); const ag=x.createLinearGradient(hx+pw,hy,hx+hw,hy+hh); ag.addColorStop(0,acc); ag.addColorStop(1,shade(acc,.42)); x.fillStyle=ag; x.fill(); x.restore();
@@ -996,9 +998,10 @@ async function drawCastPoster(){
     x.textAlign='left'; x.fillStyle=fg; x.font='400 74px Anton'; x.fillText('#'+heroRow.rank,hx+pw+40,hy+235);
     const nx=hx+pw+170, nw=hx+hw-40-nx; x.save(); x.beginPath(); x.moveTo(nx+24,hy+188); x.lineTo(nx+nw,hy+188); x.lineTo(nx+nw-24,hy+250); x.lineTo(nx,hy+250); x.closePath(); x.fillStyle='rgba(8,10,34,.72)'; x.fill(); x.restore();
     x.fillStyle='#fff'; x.textAlign='center'; const fs=fitText(x,heroRow.team.toUpperCase(),nw-80,44,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.textBaseline='middle'; x.fillText(heroRow.team.toUpperCase(),nx+nw/2,hy+220); x.textBaseline='alphabetic'; x.textAlign='left'; }
+  }
   // ---- 8 + 8 table
   const per=16, allRows=res.rows, pages=Math.max(1,Math.ceil(allRows.length/per)); if(pageIdx>=pages) pageIdx=0;
-  const rows=allRows.slice(pageIdx*per,(pageIdx+1)*per), colW=640, gap=20, ty=872, hdr=50, rowH=78, rgap=8, perCol=8;
+  const rows=allRows.slice(pageIdx*per,(pageIdx+1)*per), colW=640, gap=20, ty=hero?872:570, hdr=50, rowH=hero?78:112, rgap=8, perCol=8, k=Math.min(1.3,rowH/78);
   if(pages>1){ x.fillStyle=T.accTxt; x.font='700 22px "Barlow Condensed"'; x.letterSpacing='4px'; x.textAlign='right'; x.fillText(`PAGE ${pageIdx+1} / ${pages}  ·  TEAMS ${pageIdx*per+1}–${pageIdx*per+rows.length} OF ${allRows.length}`,hx+hw,ty-8); x.textAlign='left'; x.letterSpacing='0px'; }
   const medal=dark?['#ffd34d','#dfe5ef','#e8a066']:['#b07d00','#5b6475','#a2591f'];
   for(let c=0;c<2;c++){ const cx=hx+c*(colW+gap), part=rows.slice(c*perCol,(c+1)*perCol); if(!part.length) break;
@@ -1011,10 +1014,10 @@ async function drawCastPoster(){
       x.fillStyle=sb?(q?'rgba(34,197,94,.30)':'rgba(239,68,68,.30)'):hexA(acc,.20); x.fillRect(cx,y,rankW,rowH);
       x.beginPath(); x.moveTo(cx+rankW,y); x.lineTo(cx+rankW+plateW,y); x.lineTo(cx+rankW+plateW-34,y+rowH); x.lineTo(cx+rankW,y+rowH); x.closePath();
       const pg=x.createLinearGradient(cx+rankW,y,cx+rankW+plateW,y); pg.addColorStop(0,acc); pg.addColorStop(1,shade(acc,.22)); x.fillStyle=sb?(q?'#22c55e':'#ef4444'):pg; x.fill(); x.restore();
-      x.textAlign='center'; x.fillStyle=r.rank<=3?medal[r.rank-1]:T.txt; x.font='400 40px Anton'; x.fillText('#'+r.rank,cx+rankW/2,cy+2);
-      const pf=sb?'#ffffff':ink(acc); x.textAlign='center'; x.fillStyle=pf; const fs=fitText(x,r.team.toUpperCase(),plateW-80,36,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+rankW+(plateW-34)/2+6,cy+2);
-      x.font='600 34px "Barlow Condensed"'; x.fillStyle=r.wwcd?T.accTxt:T.sub; x.fillText(String(r.wwcd||0),nums[0],cy+2); x.fillStyle=T.txt; x.fillText(String(r.place),nums[1],cy+2); x.fillText(String(r.kills),nums[2],cy+2);
-      x.font='700 40px "Barlow Condensed"'; x.fillStyle=q&&!matchView?T.accTxt:T.txt; x.fillText(String(r.total),nums[3],cy+2); }); }
+      x.textAlign='center'; x.fillStyle=r.rank<=3?medal[r.rank-1]:T.txt; x.font=`400 ${40*k}px Anton`; x.fillText('#'+r.rank,cx+rankW/2,cy+2);
+      const pf=sb?'#ffffff':ink(acc); x.textAlign='center'; x.fillStyle=pf; const fs=fitText(x,r.team.toUpperCase(),plateW-80,36*k,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.fillText(r.team.toUpperCase(),cx+rankW+(plateW-34)/2+6,cy+2);
+      x.font=`600 ${34*k}px "Barlow Condensed"`; x.fillStyle=r.wwcd?T.accTxt:T.sub; x.fillText(String(r.wwcd||0),nums[0],cy+2); x.fillStyle=T.txt; x.fillText(String(r.place),nums[1],cy+2); x.fillText(String(r.kills),nums[2],cy+2);
+      x.font=`700 ${40*k}px "Barlow Condensed"`; x.fillStyle=q&&!matchView?T.accTxt:T.txt; x.fillText(String(r.total),nums[3],cy+2); }); }
   x.textBaseline='alphabetic';
   // ---- footer bar
   const live=(S.cfg.live||'').trim(), foot=matchView?'':(S.cfg.footer||'').replace(/\{n\}/g,qn).trim(), fy=1640, fh=60;
@@ -1048,7 +1051,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -1177,6 +1180,7 @@ $('pGroup').onchange=e=>{ if(S.cfg.ptype==='slots') slotG=+e.target.value; else{
 $('pLayout').onchange=e=>{ S.cfg.layout=e.target.value; pageIdx=0; save(); applyPType(); renderStand(); drawPoster(); };
 $('pStage').oninput=e=>{ S.cfg.stage=e.target.value; save(); drawPoster(); };
 $('pLive').oninput=e=>{ S.cfg.live=e.target.value; save(); drawPoster(); };
+$('pHero').onchange=e=>{ S.cfg.hero=e.target.checked; save(); drawPoster(); };
 $('pPhoto').onchange=e=>{ S.cfg.photoSel=e.target.value; save(); drawPoster(); };
 $('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} team photos, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
 $('pFlair').onchange=e=>{ S.cfg.flair=e.target.checked; save(); drawPoster(); };
