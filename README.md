@@ -70,3 +70,13 @@ Files: `index.html` (website on GitHub Pages) · `apps-script/Code.gs` (Google S
 3. Put one picture per team in that folder, named after the team: `kh-esports.png`. Capitals, spaces and symbols do not matter (`KH Esports.png` works too) – the name just has to match the team name in the sheet. Optional logo files `kh-esports-logo.png` are already recognised by the server but not drawn on the poster yet.
 4. Picture tips: a wide squad photo, about 1600×500 px, players cut out on a transparent PNG (or a normal JPG), feet at the bottom edge, under 6 MB (1–2 MB is ideal).
 5. On the poster the site automatically asks Drive only for the team in 1st place. The "Team photo" box lets you pick any other team or "No photo". Added a new photo while the site is open? Press "Refresh photo list from Drive".
+
+## v6.1 – your Drive folders, player pictures, winner logo
+The three folders you made are already in Code.gs: `PHOTO_FOLDER_ID` = Team Photos, `LOGO_FOLDER_ID` = Team Logos. The script must be owned by the same Google account as the folders (almas.razin.official@gmail.com). After pasting Code.gs: run the function `photoList_` once in the editor and accept the Drive permission, then Deploy → New version.
+
+**What to upload**
+- **Team Logos:** one file per team, named after the team: `kh-esports.png` (capitals/spaces/symbols do not matter). Square or round PNG with transparent background works best.
+- **Team Photos, option A – squad photo:** one file per team directly in the folder: `kh-esports.png`.
+- **Team Photos, option B – individual players (recommended):** make a sub-folder named after the team (`KH Esports`) and put one picture per player in it, file name = player name (`Sabbir.png`, `Rafi.png`). Put a number first to fix the order: `1 Sabbir.png`, `2 Rafi.png`. Transparent PNG cutouts, head to waist, about 700×1000 px, under 6 MB each. Any number of players is fine.
+
+**On the poster:** Photo type = "Individual players" shows a tick-box per player of the 1st-place team; tick the 4–6 you want (the first 5 are ticked by default). They are placed side by side with the middle one in front. The team logo appears next to the team name in the hero panel. Only the pictures of the team that is shown are downloaded. "Refresh photo list from Drive" picks up newly uploaded files (otherwise the list refreshes itself every 5 minutes).
