@@ -86,3 +86,8 @@ Poster tab → Photo type "Individual players":
 - **Photo frames:** "Equal photo cards" (default, every player in a card of the same size – best for pictures with a background) or "Cut-outs side by side" (transparent PNGs standing next to each other).
 - **Edit positions** (tick the box): click a player on the poster, drag to move the picture inside its card, mouse wheel (or the Size slider) to zoom. The sliders under it move Left/Right and Up/Down precisely. "◀ Earlier / Later ▶" changes the player's place in the row. "Reset this player" / "Reset all" go back to automatic. The blue outline is only on screen, never in the downloaded PNG.
 - Adjustments are remembered per team and per player on this device/browser.
+
+## v6.3 – no gaps, logo editing, AI background remover
+- **Photo cards:** the last card now runs right up to the slanted edge, so there is no empty strip next to the stats.
+- **Logo:** in "Edit positions" mode the team logo can be selected, dragged, zoomed and nudged like a player. Tick/untick "White box behind the team logo" in the Poster form.
+- **Background remover:** select a player (or the logo) in "Edit positions" mode and tick "Remove the background of this picture", or press "Cut out all players". It runs inside your browser with the open-source IMG.LY model (AGPL licence). The first time it downloads the model (about 40 MB, needs internet) and takes a minute; after that each picture takes a few seconds. Finished cut-outs are kept on this device, so they are instant next time. "Save this cut-out" downloads the transparent PNG, which you can upload to the Drive folder instead of the original, so the cut-out is the same on every computer. Cut-out players get an accent-coloured card background.
