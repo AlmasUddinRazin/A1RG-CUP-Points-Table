@@ -270,13 +270,17 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <label class="f">Photo type</label><select id="pHeroMode"><option value="squad">One squad photo (file in Team Photos)</option><option value="players">Individual players (folder per team)</option></select>
         <div id="pPlayers" style="margin-top:4px"></div>
         <label class="f">Photo frames</label><select id="pHeroStyle"><option value="cards">Equal photo cards (for pictures with a background)</option><option value="cutout">Cut-outs side by side (transparent PNG)</option></select>
+        <label class="f inl"><input type="checkbox" id="pLogoBox"> White box behind the team logo</label>
         <label class="f inl"><input type="checkbox" id="pEditPh"> Edit positions: drag a player on the poster · mouse wheel = zoom</label>
         <div id="phCtl" style="display:none;margin-top:6px">
           <div class="note">Selected: <b id="phName">click a player on the poster</b></div>
           <label class="f">Size</label><input type="range" id="phS" min="0.4" max="3" step="0.01">
           <label class="f">Left / right</label><input type="range" id="phX" min="-1" max="1" step="0.01">
           <label class="f">Up / down</label><input type="range" id="phY" min="-1" max="1" step="0.01">
-          <div class="chips"><button class="mc" id="phL">◀ Earlier</button><button class="mc" id="phR">Later ▶</button><button class="mc" id="phReset">Reset this player</button><button class="mc" id="phResetAll">Reset all</button></div>
+          <div class="chips"><button class="mc" id="phL">◀ Earlier</button><button class="mc" id="phR">Later ▶</button><button class="mc" id="phReset">Reset this one</button><button class="mc" id="phResetAll">Reset all</button></div>
+          <label class="f inl" style="margin-top:8px"><input type="checkbox" id="phCut"> Remove the background of this picture (AI cut-out)</label>
+          <div class="note" id="phCutStat"></div>
+          <div class="chips"><button class="mc" id="phCutAll">Cut out all players</button><button class="mc" id="phCutSave">Save this cut-out (PNG)</button></div>
         </div>
         <div class="note" id="pPhotoStat"></div>
         <button class="btn ghost" id="btnPhotoRefresh" style="margin-top:6px">Refresh photo list from Drive</button>
@@ -959,6 +963,25 @@ async function teamPlayers(name){ if(!name||!S.cfg.apiUrl) return []; const k=no
   try{ const j=await api('photos',{team:name}); return plistCache[k]=j.players||[]; }catch(e){ photoErr=e.message; return []; } }
 function fillPlayerBox(team,list,sel){ const key=team+'|'+list.join('|')+'|'+sel.join('|'); if($('pPlayers').dataset.k===key) return; $('pPlayers').dataset.k=key; $('pPlayers').dataset.team=team;
   $('pPlayers').innerHTML=list.length?list.map(n=>`<label class="inl note" style="margin-right:12px"><input type="checkbox" value="${esc(n)}" ${sel.includes(n)?'checked':''}> ${esc(n)}</label>`).join(''):''; }
+/* ---- AI background remover (runs in the browser; the model downloads once and the result is kept on this device) ---- */
+const cutMem={}, cutBlob={}, cutBusy={}, cutFail={}, cutKeyOf={}; let cutStat='', cutErr='', rbLoad=null;
+const loadRB=()=>rbLoad||(rbLoad=window.__rb?Promise.resolve(window.__rb):import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm'));
+const imgToBlob=img=>{ const c=document.createElement('canvas'); c.width=img.naturalWidth||img.width; c.height=img.naturalHeight||img.height; c.getContext('2d').drawImage(img,0,0); return new Promise(r=>c.toBlob(r,'image/png')); };
+const idb=()=>new Promise((res,rej)=>{ const q=indexedDB.open('a1rg-cut',1); q.onupgradeneeded=()=>q.result.createObjectStore('c'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+async function idbGet(k){ try{ const d=await idb(); return await new Promise(r=>{ const q=d.transaction('c').objectStore('c').get(k); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null); }); }catch(e){ return null; } }
+async function idbPut(k,v){ try{ const d=await idb(); await new Promise(r=>{ const t=d.transaction('c','readwrite'); t.objectStore('c').put(v,k); t.oncomplete=r; t.onerror=r; }); }catch(e){} }
+const showCutStat=()=>{ const el=$('phCutStat'); if(el) el.textContent=Object.keys(cutBusy).length?(cutStat||'Removing background…'):cutErr; };
+const mkCut=async b=>{ const i=await imgFromData(URL.createObjectURL(b)); if(i) i._cut=true; return i; };
+async function cutFor(team,name,img){ if(!img||!(((S.cfg.cut||{})[norm(team)]||{})[norm(name)])) return img;
+  const k=`cut|${norm(team)}|${norm(name)}|${img.width}x${img.height}|${(img.src||'').length}`; cutKeyOf[norm(name)]=k; if(cutMem[k]) return cutMem[k];
+  const st=await idbGet(k); if(st){ cutBlob[k]=st; return cutMem[k]=await mkCut(st); }
+  if(!cutBusy[k]&&!cutFail[k]){ cutBusy[k]=1; cutErr=''; runCut(k,img); } return img; }
+async function runCut(k,img){ cutStat='Removing background… the first time it downloads the AI model (about 40 MB), please wait'; showCutStat();
+  try{ const mod=await loadRB(), fn=mod.removeBackground||mod.default;
+    const out=await fn(await imgToBlob(img),{model:'isnet_fp16',output:{format:'image/png'},progress:(key,cur,tot)=>{ if(tot&&/fetch|model|onnx/i.test(String(key))){ cutStat=`Downloading the AI model… ${Math.round(cur/tot*100)}%`; showCutStat(); } }});
+    cutBlob[k]=out; await idbPut(k,out); cutMem[k]=await mkCut(out); }
+  catch(e){ cutFail[k]=1; cutErr='Background remover failed: '+(e&&e.message||e)+'. Check the internet connection and try again.'; toast(cutErr,true); }
+  finally{ delete cutBusy[k]; cutStat=''; showCutStat(); drawPoster(); } }
 const layoutOf=()=>S.cfg.layout||'cast';
 const perOf=()=>layoutOf()==='cast'?16:(+S.cfg.perPage||8);
 function fillPhotoSel(rows){ const key=rows.map(r=>r.team).join('|'); if($('pPhoto').dataset.k!==key){ $('pPhoto').dataset.k=key;
@@ -978,9 +1001,9 @@ async function drawCastPoster(){
     heroName=sel==='none'?null:(sel==='auto'?sorted[0]?.team:sel); heroRow=sorted.find(r=>norm(r.team)===norm(heroName))||sorted[0];
     if(heroName&&S.cfg.hero!==false){
       if(S.cfg.heroMode==='players'){ plist=await teamPlayers(heroName); if(my!==drawing) return; const pk=(S.cfg.pick||{})[norm(heroName)]; psel=(pk?pk.filter(n=>plist.includes(n)):plist.slice(0,5)).slice(0,6);
-        pimgs=(await Promise.all(psel.map(async n=>({name:n,img:await teamPhoto(heroName,'player',n)})))).filter(p=>p.img); curPsel=pimgs.map(p=>p.name); fillPlayerBox(heroName,plist,psel); }
+        pimgs=(await Promise.all(psel.map(async n=>({name:n,img:await teamPhoto(heroName,'player',n)})))).filter(p=>p.img); for(const p of pimgs) p.img=await cutFor(heroName,p.name,p.img); curPsel=pimgs.map(p=>p.name); fillPlayerBox(heroName,plist,psel); }
       else{ photo=await teamPhoto(heroName,'photo'); fillPlayerBox('',[],[]); }
-      logo=await teamPhoto(heroName,'logo'); if(my!==drawing) return; } }
+      logo=await teamPhoto(heroName,'logo'); logo=await cutFor(heroName,'__logo',logo); if(my!==drawing) return; } }
   $('pNote').textContent=posterImgUrl()&&!img?'Background picture could not be loaded. Drawing without it.':'';
   $('pPhotoStat').textContent=!res?'':(S.cfg.hero===false?'Photo frame is off: the table uses the full height.':!heroName?'No photo is used.':!S.cfg.apiUrl?'Connect the sheet to use the Drive photos.':photoErr?'Drive problem: '+photoErr:
     (S.cfg.heroMode==='players'?(pimgs.length?`${pimgs.length} of ${plist.length} player pictures of ${heroName} loaded ✔`:`No player pictures for "${heroName}". Create a folder named "${heroName}" inside Team Photos and put the player pictures in it.`):(photo?`Photo of ${heroName} loaded from Drive ✔`:`No photo for "${heroName}". Name the file  ${slugOf(heroName)}.png`))+(logo?'  ·  logo ✔':'  ·  no logo found ('+slugOf(heroName)+'.png in Team Logos)'));
@@ -1009,9 +1032,9 @@ async function drawCastPoster(){
   x.save(); rrPath(x,hx,hy,hw,hh,6); x.fillStyle=T.panel; x.fill(); x.lineWidth=2; x.strokeStyle=hexA(acc,.7); x.stroke(); x.clip();
   x.save(); x.beginPath(); x.moveTo(hx,hy); x.lineTo(hx+pw,hy); x.lineTo(hx+pw-44,hy+hh); x.lineTo(hx,hy+hh); x.closePath(); x.clip();
   phBoxes=[];
-  if(pimgs.length){ const n=pimgs.length, zw=pw-44, cw=zw/n, adjAll=(S.cfg.adj||{})[norm(heroName)]||{}, cards=(S.cfg.heroStyle||'cards')==='cards', ad=p=>Object.assign({dx:0,dy:0,s:1},adjAll[norm(p.name)]);
-    if(cards){ pimgs.forEach((p,i)=>{ const a=ad(p), im=p.img, c0=hx+i*cw, r=Math.max(cw/im.width,hh/im.height)*a.s, w=im.width*r, h=im.height*r;
-        x.save(); x.beginPath(); x.rect(c0+1,hy,cw-2,hh); x.clip(); x.fillStyle=dark?'#141a3a':'#dfe6f2'; x.fillRect(c0,hy,cw,hh); x.drawImage(im,c0+(cw-w)/2+a.dx*cw,hy+a.dy*hh,w,h); x.restore();
+  if(pimgs.length){ const n=pimgs.length, cw=(pw-22)/n, adjAll=(S.cfg.adj||{})[norm(heroName)]||{}, cards=(S.cfg.heroStyle||'cards')==='cards', ad=p=>Object.assign({dx:0,dy:0,s:1},adjAll[norm(p.name)]);
+    if(cards){ pimgs.forEach((p,i)=>{ const a=ad(p), im=p.img, c0=hx+i*cw, cwi=i===n-1?hx+pw-c0:cw, r=Math.max(cw/im.width,hh/im.height)*a.s, w=im.width*r, h=im.height*r;
+        x.save(); x.beginPath(); x.rect(c0+1,hy,cwi-1,hh); x.clip(); if(im._cut){ const bg=x.createLinearGradient(c0,hy,c0,hy+hh); bg.addColorStop(0,hexA(acc,.55)); bg.addColorStop(1,dark?'#0b0f2a':shade(acc,.2)); x.fillStyle=bg; } else x.fillStyle=dark?'#141a3a':'#dfe6f2'; x.fillRect(c0,hy,cwi,hh); x.drawImage(im,c0+(cw-w)/2+a.dx*cw,hy+a.dy*hh,w,h); x.restore();
         phBoxes.push({name:p.name,x:c0,y:hy,w:cw,h:hh,cw,hh}); }); }
     else{ const order=[...Array(n).keys()].sort((a,b)=>Math.abs(b-(n-1)/2)-Math.abs(a-(n-1)/2));
       order.forEach(i=>{ const p=pimgs[i], a=ad(p), im=p.img, r=Math.min(cw*1.5/im.width,hh*1.08/im.height)*a.s, w=im.width*r, h=im.height*r, cx=hx+cw*(i+.5)+a.dx*cw, y=hy+hh-h+a.dy*hh; x.drawImage(im,cx-w/2,y,w,h); phBoxes.push({name:p.name,x:cx-w/2,y,w,h,cw,hh}); }); }
@@ -1025,7 +1048,9 @@ async function drawCastPoster(){
   if(heroRow){ const cx0=hx+pw+100, step=(hx+hw-cx0-70)/3, stats=[[heroRow.wwcd||0,'WWCD'],[heroRow.place,'PLACE PTS'],[heroRow.kills,'ELIMS'],[heroRow.total,'TOTAL PTS']], fg=ink(acc);
     stats.forEach(([v,l],i)=>{ const cx=cx0+i*step; x.textAlign='center'; x.fillStyle=fg; x.font='400 84px Anton'; x.fillText(String(v),cx,hy+98); const cw=112,ch=36; rrPath(x,cx-cw/2,hy+112,cw,ch,4); x.fillStyle=i===3?'#ffe08a':'rgba(255,255,255,.94)'; x.fill(); x.fillStyle='#10162b'; x.font='700 17px "Barlow Condensed"'; x.letterSpacing='0px'; x.fillText(l,cx,hy+137); x.letterSpacing='0px'; });
     x.textAlign='left'; x.fillStyle=fg; x.font=`400 ${heroRow.rank>=10?54:74}px Anton`; x.fillText('#'+heroRow.rank,hx+pw+40,hy+235);
-    const lx=hx+pw+118, nx=hx+pw+(logo?196:170), nw=hx+hw-40-nx; if(logo){ rrPath(x,lx,hy+188,62,62,8); x.fillStyle='#ffffff'; x.fill(); const lk=Math.min(54/logo.width,54/logo.height); x.drawImage(logo,lx+31-logo.width*lk/2,hy+219-logo.height*lk/2,logo.width*lk,logo.height*lk); } x.save(); x.beginPath(); x.moveTo(nx+24,hy+188); x.lineTo(nx+nw,hy+188); x.lineTo(nx+nw-24,hy+250); x.lineTo(nx,hy+250); x.closePath(); x.fillStyle='rgba(8,10,34,.72)'; x.fill(); x.restore();
+    const lx=hx+pw+118, nx=hx+pw+(logo?196:170), nw=hx+hw-40-nx; if(logo){ const la=Object.assign({dx:0,dy:0,s:1},((S.cfg.adj||{})[norm(heroName)]||{})[norm('__logo')]), ls=62*la.s, lcx=lx+31+la.dx*280, lcy=hy+219+la.dy*280, box=S.cfg.logoBox!==false;
+      if(box){ rrPath(x,lcx-ls/2,lcy-ls/2,ls,ls,8*la.s); x.fillStyle='#ffffff'; x.fill(); }
+      const lk=Math.min((box?ls*.87:ls)/logo.width,(box?ls*.87:ls)/logo.height); x.drawImage(logo,lcx-logo.width*lk/2,lcy-logo.height*lk/2,logo.width*lk,logo.height*lk); phBoxes.push({name:'__logo',x:lcx-ls/2,y:lcy-ls/2,w:ls,h:ls,cw:280,hh:280}); } x.save(); x.beginPath(); x.moveTo(nx+24,hy+188); x.lineTo(nx+nw,hy+188); x.lineTo(nx+nw-24,hy+250); x.lineTo(nx,hy+250); x.closePath(); x.fillStyle='rgba(8,10,34,.72)'; x.fill(); x.restore();
     x.fillStyle='#fff'; x.textAlign='center'; const fs=fitText(x,heroRow.team.toUpperCase(),nw-80,44,{w:'700',f:'"Barlow Condensed"'}); x.font=`700 ${fs}px "Barlow Condensed"`; x.textBaseline='middle'; x.fillText(heroRow.team.toUpperCase(),nx+nw/2,hy+220); x.textBaseline='alphabetic'; x.textAlign='left'; }
   }
   // ---- 8 + 8 table
@@ -1080,7 +1105,7 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pHeroStyle').value=c.heroStyle||'cards'; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pLogoBox').checked=c.logoBox!==false; $('pHeroStyle').value=c.heroStyle||'cards'; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
   $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
@@ -1212,24 +1237,28 @@ $('pLive').oninput=e=>{ S.cfg.live=e.target.value; save(); drawPoster(); };
 $('pHero').onchange=e=>{ S.cfg.hero=e.target.checked; save(); drawPoster(); };
 $('pPhoto').onchange=e=>{ S.cfg.photoSel=e.target.value; save(); drawPoster(); };
 $('pPlayers').onchange=()=>{ const t=$('pPlayers').dataset.team, ck=[...$('pPlayers').querySelectorAll('input:checked')].map(e=>e.value), prev=curPsel.slice(); (S.cfg.pick=S.cfg.pick||{})[norm(t)]=prev.filter(n=>ck.includes(n)).concat(ck.filter(n=>!prev.includes(n))); $('pPlayers').dataset.k=''; save(); drawPoster(); };
+$('pLogoBox').onchange=e=>{ S.cfg.logoBox=e.target.checked; save(); drawPoster(); };
 $('pHeroStyle').onchange=e=>{ S.cfg.heroStyle=e.target.value; save(); drawPoster(); };
 /* ---- drag / zoom editor for the player photos ---- */
 let phSel=null, phBoxes=[], phDrag=null, phRaf=0, phEdit=false, curPsel=[];
 const phTeam=()=>norm($('pPlayers').dataset.team||'');
 function phAdj(name){ const t=phTeam(); S.cfg.adj=S.cfg.adj||{}; const a=S.cfg.adj[t]=S.cfg.adj[t]||{}; return a[norm(name)]=a[norm(name)]||{dx:0,dy:0,s:1}; }
 function phPlace(){ const o=$('phSel'), b=phEdit&&phSel&&phBoxes.find(q=>q.name===phSel); if(!b){ o.style.display='none'; return; }
-  const cv=$('cv'), k=cv.clientWidth/cv.width, hx=70, hy=560, ww=Math.min(b.w,740-44), x0=Math.max(b.x,hx), x1=Math.min(b.x+b.w,hx+740-44), y0=Math.max(b.y,hy), y1=Math.min(b.y+b.h,hy+280);
+  const cv=$('cv'), k=cv.clientWidth/cv.width, hx=70, hy=560, lg=b.name==='__logo', x0=lg?b.x:Math.max(b.x,hx), x1=lg?b.x+b.w:Math.min(b.x+b.w,hx+740-22), y0=lg?b.y:Math.max(b.y,hy), y1=lg?b.y+b.h:Math.min(b.y+b.h,hy+280);
   o.style.display='block'; o.style.left=x0*k+'px'; o.style.top=y0*k+'px'; o.style.width=Math.max(4,(x1-x0)*k-6)+'px'; o.style.height=Math.max(4,(y1-y0)*k-6)+'px'; }
-function phCtl(){ $('phCtl').style.display=phEdit?'':'none'; $('phName').textContent=phSel||'click a player on the poster'; if(phSel){ const a=phAdj(phSel); $('phS').value=a.s; $('phX').value=a.dx; $('phY').value=a.dy; } phPlace(); }
+function phCtl(){ $('phCtl').style.display=phEdit?'':'none'; $('phName').textContent=phSel==='__logo'?'Team logo':phSel||'click a player on the poster'; if(phSel){ $('phCut').checked=!!((S.cfg.cut||{})[phTeam()]||{})[norm(phSel)]; } if(phSel){ const a=phAdj(phSel); $('phS').value=a.s; $('phX').value=a.dx; $('phY').value=a.dy; } phPlace(); }
 const phRedraw=()=>{ if(phRaf) return; phRaf=requestAnimationFrame(()=>{ phRaf=0; drawPoster(); }); };
 const cvPt=e=>{ const r=$('cv').getBoundingClientRect(), k=$('cv').width/r.width; return {x:(e.clientX-r.left)*k,y:(e.clientY-r.top)*k}; };
-const phHit=pt=>{ for(let i=phBoxes.length-1;i>=0;i--){ const b=phBoxes[i]; if(pt.x>=b.x&&pt.x<=b.x+b.w&&pt.y>=b.y&&pt.y<=b.y+b.h&&pt.y>=560&&pt.y<=840) return b; } return null; };
+const phHit=pt=>{ for(let i=phBoxes.length-1;i>=0;i--){ const b=phBoxes[i]; if(pt.x>=b.x&&pt.x<=b.x+b.w&&pt.y>=b.y&&pt.y<=b.y+b.h&&(b.name==='__logo'||(pt.y>=560&&pt.y<=840))) return b; } return null; };
 $('pEditPh').onchange=e=>{ phEdit=e.target.checked; $('cv').style.cursor=phEdit?'move':''; $('cv').style.touchAction=phEdit?'none':''; phCtl(); };
 $('cv').addEventListener('pointerdown',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e)); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); phDrag={p:cvPt(e),a:Object.assign({},a),b}; $('cv').setPointerCapture(e.pointerId); phCtl(); });
 $('cv').addEventListener('pointermove',e=>{ if(!phDrag) return; const p=cvPt(e), a=phAdj(phSel); a.dx=Math.max(-1.5,Math.min(1.5,phDrag.a.dx+(p.x-phDrag.p.x)/phDrag.b.cw)); a.dy=Math.max(-1.5,Math.min(1.5,phDrag.a.dy+(p.y-phDrag.p.y)/phDrag.b.hh)); $('phX').value=a.dx; $('phY').value=a.dy; phRedraw(); });
 const phEnd=()=>{ if(phDrag){ phDrag=null; save(); } }; $('cv').addEventListener('pointerup',phEnd); $('cv').addEventListener('pointercancel',phEnd);
 $('cv').addEventListener('wheel',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e))||phBoxes.find(q=>q.name===phSel); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); a.s=Math.max(.4,Math.min(3,a.s*Math.exp(-e.deltaY*.0015))); $('phS').value=a.s; clearTimeout(phSave); phSave=setTimeout(save,400); phCtl(); phRedraw(); },{passive:false});
 let phSave; ['phS','phX','phY'].forEach(id=>$(id).oninput=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=+$('phS').value; a.dx=+$('phX').value; a.dy=+$('phY').value; clearTimeout(phSave); phSave=setTimeout(save,400); phRedraw(); });
+$('phCut').onchange=e=>{ if(!phSel) return; const t=phTeam(); S.cfg.cut=S.cfg.cut||{}; (S.cfg.cut[t]=S.cfg.cut[t]||{})[norm(phSel)]=e.target.checked; cutErr=''; Object.keys(cutFail).forEach(k=>delete cutFail[k]); save(); drawPoster(); };
+$('phCutAll').onclick=()=>{ const t=phTeam(); S.cfg.cut=S.cfg.cut||{}; curPsel.forEach(n=>{ (S.cfg.cut[t]=S.cfg.cut[t]||{})[norm(n)]=true; }); cutErr=''; Object.keys(cutFail).forEach(k=>delete cutFail[k]); save(); phCtl(); drawPoster(); };
+$('phCutSave').onclick=()=>{ const k=phSel&&cutKeyOf[norm(phSel)], b=k&&cutBlob[k]; if(!b) return toast('Turn on "Remove the background" for this picture first and wait until it finishes',true); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=(phSel==='__logo'?slugOf(($('pPlayers').dataset.team||'team'))+'-logo':phSel)+'.png'; a.click(); };
 $('phReset').onclick=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=1; a.dx=0; a.dy=0; save(); phCtl(); drawPoster(); };
 $('phResetAll').onclick=()=>{ if(S.cfg.adj) delete S.cfg.adj[phTeam()]; save(); phCtl(); drawPoster(); };
 const phMove=d=>{ if(!phSel) return; const arr=curPsel.slice(), i=arr.indexOf(phSel), j=i+d; if(i<0||j<0||j>=arr.length) return; [arr[i],arr[j]]=[arr[j],arr[i]]; (S.cfg.pick=S.cfg.pick||{})[phTeam()]=arr; save(); drawPoster(); };
