@@ -298,7 +298,14 @@ canvas#cv{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
         <div class="note">{n} is replaced by the qualifying number. Leave empty to hide the line.</div>
       </div>
       <label class="f">Bottom-right line</label><input id="pCredit" placeholder="ENIGMA OPERATION LTD.">
-      <label class="f">Logo (top right)</label><select id="pLogo"><option value="auto">Auto (white on dark, black on light)</option><option value="white">Always white</option><option value="black">Always black</option><option value="none">Hide logo</option></select>
+      <label class="f">Logo</label><select id="pLogo"><option value="tour">Tournament logo</option><option value="auto">PUBG Mobile Esports (white on dark, black on light)</option><option value="white">PUBG Mobile Esports, white</option><option value="black">PUBG Mobile Esports, black</option><option value="none">No logo</option></select>
+      <div id="tlBox">
+        <input id="pLogoUrl" placeholder="Own logo link (optional, replaces the built-in tournament logo)">
+        <label class="f">Logo size</label><input type="range" id="tlS" min="0.3" max="3" step="0.01">
+        <label class="f">Logo left / right</label><input type="range" id="tlX" min="-400" max="1600" step="1">
+        <label class="f">Logo up / down</label><input type="range" id="tlY" min="-300" max="1700" step="1">
+        <div class="note">Broadcast and Slot posters. On the Broadcast poster you can also drag it: tick "Edit positions" and drag the logo. <button class="mc" id="tlReset">Reset logo</button></div>
+      </div>
       <label class="f inl" style="margin-top:12px"><input type="checkbox" id="pFlair"> Elite frame (hazard stripes + corner brackets)</label>
       <div class="rOnly"><label class="f inl" style="margin-top:12px"><input type="checkbox" id="pStat"> Green / red status bars</label></div>
       <label class="f">Accent colour</label>
@@ -360,6 +367,7 @@ const IMG = {
   c:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/8c99c7ace42ad6fad37dbaee3daef75f21832689/use%20this%20assest.png'
 };
 const LOGOS = {
+  tour:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/4c86425a5704ba07e5d30b617bdb838d1174716a/Logo%20Main%20WHITE.png',
   white:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/c1ad413c8d61c21e0d6025adde63d34ac25f5c6f/images__12_-removebg-preview.png',
   black:'https://raw.githubusercontent.com/AlmasUddinRazin/website-assets/c1ad413c8d61c21e0d6025adde63d34ac25f5c6f/75429b9.png'
 };
@@ -406,7 +414,8 @@ let pageIdx=0, pageKey='';
 const pageCount = () => { const r=standG!=null?viewRes(standG):null; return r?Math.max(1,Math.ceil(r.rows.length/perOf())):1; };
 const daysN = () => Math.max(1,Math.min(14,+roundInfo(S.round).days||1));
 if(!S.rounds.some(x=>x.id===S.round)) S.round=S.rounds[0].id;
-const ROUND_LOOK={3:{bd:'blood',accent:'#ff2d3d'}};
+if(S.cfg.logoV!==2){ S.cfg.logo='tour'; S.cfg.logoV=2; }
+const ROUND_LOOK={3:{bd:'blood',accent:'#ff2d3d'},4:{bd:'violet',accent:'#d9a566'}};
 function rememberLook(){ (S.cfg.rt=S.cfg.rt||{})[S.round]={bd:S.cfg.bd,accent:S.cfg.accent}; }
 function applyLook(){ const t=(S.cfg.rt||{})[S.round]||ROUND_LOOK[S.round]; if(t){ S.cfg.bd=t.bd; S.cfg.accent=t.accent; } }
 let lookFor=0;
@@ -826,7 +835,7 @@ async function drawResultPoster(){
   const g=standG, res=viewRes(g), info=grp(g);
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
-  const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
+  const logoImg=await brandLogo(dark); if(my!==drawing) return;
   $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded (is the GitHub repo public? is the link right?). Drawing without it.' : '';
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc);
@@ -903,7 +912,7 @@ async function drawSlotPoster(){
   const g=slotG, info=grp(g), N=matchesN();
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
-  const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
+  const logoImg=await brandLogo(dark); if(my!==drawing) return;
   $('pNote').textContent = posterImgUrl() && !img ? 'Picture could not be loaded. Drawing without it.' : '';
   x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.textAlign='left'; x.textBaseline='alphabetic'; x.letterSpacing='0px';
   drawBackdrop(x,W,H,bd,acc); if(img) drawPicture(x,W,H,img,bd,dark);
@@ -929,7 +938,7 @@ async function drawSlotPoster(){
   rowBox('DATE',info.date||'TBA',y,58); y+=66; rowBox('TIME',fmtTime(info.time)||'TBA',y,58); y+=66;
   items.slice(0,tail).forEach(it=>{ rowBox(it.k,String(it.v).toUpperCase(),y,h); y+=h+8; });
   if(items.length>tail){ x.fillStyle=T.sub; x.font='600 22px "Barlow Condensed"'; x.fillText('+ '+(items.length-tail)+' more matches',72,y+22); }
-  if(logoImg){ const mw=300,mh=70,k=Math.min(mw/logoImg.width,mh/logoImg.height),lw=logoImg.width*k,lh=logoImg.height*k; x.drawImage(logoImg,70,H-40-lh,lw,lh); }
+  if(logoImg){ const tl=tlAdj(), big=(S.cfg.logo||'tour')==='tour', k=Math.min((big?360:300)*tl.s/logoImg.width,(big?130:70)*tl.s/logoImg.height), lw=logoImg.width*k, lh=logoImg.height*k; x.drawImage(logoImg,70+tl.dx,H-40-lh+tl.dy,lw,lh); }
   // ---- right: slot grid
   const rx=LW+70, rw=W-rx-60, smin=S.cfg.slotMin, smax=S.cfg.slotMax, cnt=Math.max(1,smax-smin+1), cols=cnt>8?2:1, per=Math.ceil(cnt/cols);
   x.fillStyle=T.txt; x.font='400 76px Anton'; x.fillText('SLOT LIST',rx,112);
@@ -954,13 +963,15 @@ async function drawSlotPoster(){
 const photoCache={}; let photoErr='';
 const slugOf=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 function imgFromData(url){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=url; }); }
+const metaCache={};
+async function teamMeta(name){ const k=norm(name); if(k in metaCache) return metaCache[k]; try{ const j=await api('photos',{team:name}); return metaCache[k]=j.meta||{players:[],photo:null,logo:null}; }catch(e){ photoErr=e.message; return {players:[],photo:null,logo:null}; } }
+async function teamPlayers(name){ if(!name||!S.cfg.apiUrl) return []; const m=await teamMeta(name); return (m.players||[]).map(p=>p.name); }
 async function teamPhoto(name,kind,player){ photoErr=''; if(!name||!S.cfg.apiUrl) return null; const k=(kind||'photo')+'|'+norm(name)+'|'+norm(player);
   if(k in photoCache) return photoCache[k];
-  try{ const j=await api('photo',{team:name,kind:kind||'photo',player:player||''}); photoCache[k]=j.found?await imgFromData(`data:${j.mime};base64,${j.data}`):null; return photoCache[k]; }
-  catch(e){ photoErr=e.message; return null; } }
-const plistCache={};
-async function teamPlayers(name){ if(!name||!S.cfg.apiUrl) return []; const k=norm(name); if(k in plistCache) return plistCache[k];
-  try{ const j=await api('photos',{team:name}); return plistCache[k]=j.players||[]; }catch(e){ photoErr=e.message; return []; } }
+  const m=await teamMeta(name), ent=kind==='logo'?m.logo:kind==='player'?(m.players||[]).find(p=>norm(p.name)===norm(player)):m.photo; if(!ent) return photoCache[k]=null;
+  const ik='img|'+ent.id+'|'+ent.v; let blob=await idbGet(ik);                    // pictures already seen on this device load instantly
+  if(!blob){ try{ const j=await api('photo',{team:name,kind:kind||'photo',player:player||''}); if(!j.found) return photoCache[k]=null; blob=await (await fetch(`data:${j.mime};base64,${j.data}`)).blob(); idbPut(ik,blob); }catch(e){ photoErr=e.message; return null; } }
+  const im=await imgFromData(URL.createObjectURL(blob)); if(im) im._v=ent.id+'|'+ent.v; return photoCache[k]=im; }
 function fillPlayerBox(team,list,sel){ const key=team+'|'+list.join('|')+'|'+sel.join('|'); if($('pPlayers').dataset.k===key) return; $('pPlayers').dataset.k=key; $('pPlayers').dataset.team=team;
   $('pPlayers').innerHTML=list.length?list.map(n=>`<label class="inl note" style="margin-right:12px"><input type="checkbox" value="${esc(n)}" ${sel.includes(n)?'checked':''}> ${esc(n)}</label>`).join(''):''; }
 /* ---- AI background remover (runs in the browser; the model downloads once and the result is kept on this device) ---- */
@@ -973,7 +984,7 @@ async function idbPut(k,v){ try{ const d=await idb(); await new Promise(r=>{ con
 const showCutStat=()=>{ const el=$('phCutStat'); if(el) el.textContent=Object.keys(cutBusy).length?(cutStat||'Removing background…'):cutErr; };
 const mkCut=async b=>{ const i=await imgFromData(URL.createObjectURL(b)); if(i) i._cut=true; return i; };
 async function cutFor(team,name,img){ if(!img||!(((S.cfg.cut||{})[norm(team)]||{})[norm(name)])) return img;
-  const k=`cut|${norm(team)}|${norm(name)}|${img.width}x${img.height}|${(img.src||'').length}`; cutKeyOf[norm(name)]=k; if(cutMem[k]) return cutMem[k];
+  const k=`cut|${norm(team)}|${norm(name)}|${img.width}x${img.height}|${img._v||''}`; cutKeyOf[norm(name)]=k; if(cutMem[k]) return cutMem[k];
   const st=await idbGet(k); if(st){ cutBlob[k]=st; return cutMem[k]=await mkCut(st); }
   if(!cutBusy[k]&&!cutFail[k]){ cutBusy[k]=1; cutErr=''; runCut(k,img); } return img; }
 async function runCut(k,img){ cutStat='Removing background… the first time it downloads the AI model (about 40 MB), please wait'; showCutStat();
@@ -982,6 +993,14 @@ async function runCut(k,img){ cutStat='Removing background… the first time it 
     cutBlob[k]=out; await idbPut(k,out); cutMem[k]=await mkCut(out); }
   catch(e){ cutFail[k]=1; cutErr='Background remover failed: '+(e&&e.message||e)+'. Check the internet connection and try again.'; toast(cutErr,true); }
   finally{ delete cutBusy[k]; cutStat=''; showCutStat(); drawPoster(); } }
+const tintMemo=new Map();
+function tintImg(im,col){ const k=im.src+col; if(tintMemo.has(k)) return tintMemo.get(k); const c=document.createElement('canvas'); c.width=im.naturalWidth||im.width; c.height=im.naturalHeight||im.height; const g=c.getContext('2d'); g.drawImage(im,0,0); g.globalCompositeOperation='source-in'; g.fillStyle=col; g.fillRect(0,0,c.width,c.height); tintMemo.set(k,c); return c; }
+async function brandLogo(dark){ const lg=S.cfg.logo||'tour'; if(lg==='none') return null;
+  if(lg==='tour'){ const im=await loadImg((S.cfg.logoUrl||'').trim()||LOGOS.tour); return im?(dark?im:tintImg(im,'#0e1220')):null; }
+  return loadImg(LOGOS[lg==='auto'?(dark?'white':'black'):lg]); }
+const tlMode=()=>S.cfg.ptype==='slots'?'slot':(layoutOf()==='cast'?'cast':'wide');
+const tlAdj=()=>{ S.cfg.tl=S.cfg.tl||{}; const m=tlMode(); return S.cfg.tl[m]=S.cfg.tl[m]||{dx:0,dy:0,s:1}; };
+function tlSync(){ const a=tlAdj(); $('tlS').value=a.s; $('tlX').value=a.dx; $('tlY').value=a.dy; $('tlBox').style.display=(S.cfg.logo||'tour')==='none'||tlMode()==='wide'?'none':''; $('pLogoUrl').style.display=(S.cfg.logo||'tour')==='tour'?'':'none'; }
 const layoutOf=()=>S.cfg.layout||'cast';
 const perOf=()=>layoutOf()==='cast'?16:(+S.cfg.perPage||8);
 function fillPhotoSel(rows){ const key=rows.map(r=>r.team).join('|'); if($('pPhoto').dataset.k!==key){ $('pPhoto').dataset.k=key;
@@ -995,7 +1014,7 @@ async function drawCastPoster(){
   const g=standG, res=viewRes(g), info=grp(g);
   try{ await Promise.all([document.fonts.load('100px Anton'),document.fonts.load('italic 700 30px "Barlow Condensed"'),document.fonts.load('700 30px "Barlow Condensed"'),document.fonts.load('600 20px Barlow')]); }catch(e){}
   const img=await loadImg(posterImgUrl()); if(my!==drawing) return;
-  const lg=S.cfg.logo||'auto', logoKey=lg==='none'?null:(lg==='auto'?(dark?'white':'black'):lg), logoImg=logoKey?await loadImg(LOGOS[logoKey]):null; if(my!==drawing) return;
+  const logoImg=await brandLogo(dark); if(my!==drawing) return;
   let heroRow=null, heroName=null, photo=null, plist=[], psel=[], pimgs=[], logo=null;
   if(res){ const sorted=res.rows.slice().sort((a,b)=>a.rank-b.rank); fillPhotoSel(sorted); const sel=S.cfg.photoSel||'auto';
     heroName=sel==='none'?null:(sel==='auto'?sorted[0]?.team:sel); heroRow=sorted.find(r=>norm(r.team)===norm(heroName))||sorted[0];
@@ -1013,10 +1032,10 @@ async function drawCastPoster(){
   if(!res){ x.fillStyle=T.sub; x.font='600 40px Barlow'; x.fillText('No result saved for this group yet',80,300); return; }
   const N=matchesN(), matchView=res.kind!=='overall', qn=matchView?999:qualifyFor(g), sb=!matchView&&S.cfg.statusCol;
   // ---- top row: logo · tournament · group badge
-  if(logoImg){ const k=Math.min(240/logoImg.width,120/logoImg.height); x.drawImage(logoImg,60,52,logoImg.width*k,logoImg.height*k); }
+  phBoxes=[]; if(logoImg){ const tl=tlAdj(), k=Math.min(280*tl.s/logoImg.width,120*tl.s/logoImg.height), lw=logoImg.width*k, lh=logoImg.height*k, lx=56+tl.dx, ly=40+tl.dy; x.drawImage(logoImg,lx,ly,lw,lh); phBoxes.push({name:'__tlogo',x:lx,y:ly,w:lw,h:lh,cw:1,hh:1}); }
   const tn=(S.cfg.tournament||'TOURNAMENT').toUpperCase(); x.font='700 28px "Barlow Condensed"'; x.letterSpacing='9px'; let tw=x.measureText(tn).width; if(tw>560){ x.letterSpacing='3px'; tw=x.measureText(tn).width; }
   const tcx=700; x.fillStyle=T.sub; x.textAlign='center'; x.fillText(tn,tcx,118); x.textAlign='left'; x.letterSpacing='0px';
-  x.fillStyle=acc; x.fillRect(tcx-tw/2-190,110,160,3); x.fillRect(tcx+tw/2+30,110,160,3); x.fillRect(tcx-tw/2-196,106,10,10); x.fillRect(tcx+tw/2+186,106,10,10);
+  x.fillStyle=acc; { const l0=Math.max(380,tcx-tw/2-190), l1=Math.min(1100,tcx+tw/2+190); if(tcx-tw/2-30>l0){ x.fillRect(l0,110,tcx-tw/2-30-l0,3); x.fillRect(l0-6,106,10,10); } if(l1>tcx+tw/2+30){ x.fillRect(tcx+tw/2+30,110,l1-tcx-tw/2-30,3); x.fillRect(l1-4,106,10,10); } }
   { const bx=1130, by=54, bw=250, bh=116; x.save(); x.beginPath(); x.moveTo(bx+30,by); x.lineTo(bx+bw,by); x.lineTo(bx+bw-30,by+bh); x.lineTo(bx,by+bh); x.closePath(); x.fillStyle=acc; x.fill(); x.restore();
     x.fillStyle=ink(acc); x.textAlign='center'; x.font='700 24px "Barlow Condensed"'; x.letterSpacing='8px'; x.fillText('GROUP',bx+bw/2+4,by+36); x.letterSpacing='0px'; x.font='400 74px Anton'; x.fillText(String(g).padStart(2,'0'),bx+bw/2,by+102); x.textAlign='left'; }
   // ---- title (stage) + sub-title
@@ -1031,7 +1050,6 @@ async function drawCastPoster(){
   if(hero){
   x.save(); rrPath(x,hx,hy,hw,hh,6); x.fillStyle=T.panel; x.fill(); x.lineWidth=2; x.strokeStyle=hexA(acc,.7); x.stroke(); x.clip();
   x.save(); x.beginPath(); x.moveTo(hx,hy); x.lineTo(hx+pw,hy); x.lineTo(hx+pw-44,hy+hh); x.lineTo(hx,hy+hh); x.closePath(); x.clip();
-  phBoxes=[];
   if(pimgs.length){ const n=pimgs.length, cw=(pw-22)/n, adjAll=(S.cfg.adj||{})[norm(heroName)]||{}, cards=(S.cfg.heroStyle||'cards')==='cards', ad=p=>Object.assign({dx:0,dy:0,s:1},adjAll[norm(p.name)]);
     if(cards){ pimgs.forEach((p,i)=>{ const a=ad(p), im=p.img, c0=hx+i*cw, cwi=i===n-1?hx+pw-c0:cw, r=Math.max(cw/im.width,hh/im.height)*a.s, w=im.width*r, h=im.height*r;
         x.save(); x.beginPath(); x.rect(c0+1,hy,cwi-1,hh); x.clip(); if(im._cut){ const bg=x.createLinearGradient(c0,hy,c0,hy+hh); bg.addColorStop(0,hexA(acc,.55)); bg.addColorStop(1,dark?'#0b0f2a':shade(acc,.2)); x.fillStyle=bg; } else x.fillStyle=dark?'#141a3a':'#dfe6f2'; x.fillRect(c0,hy,cwi,hh); x.drawImage(im,c0+(cw-w)/2+a.dx*cw,hy+a.dy*hh,w,h); x.restore();
@@ -1105,11 +1123,12 @@ function renderRules(){ const sel=$('rGroup').value||'0';
   $('rGroup').innerHTML='<option value="0">All groups (default)</option>'+S.roster.map(g=>`<option value="${g.no}">Group ${g.no}${S.rules[g.no]?' ★ custom':''}</option>`).join(''); $('rGroup').value=sel; fillRules(); }
 function fillRules(){ const g=curRuleG(), R=rulesFor(g); $('rPlace').value=R.placement.join(', '); $('rKill').value=R.kill; $('rQual').value=R.qualify;
   $('rNote').textContent=roundInfo(S.round).name+' · '+(g?(S.rules[g]?'★ This group has its own rules.':'This group follows the default rules.'):'these rules apply to every group of this round that has no rules of its own.'); }
-function renderPosterForm(){ const c=S.cfg; $('pLogoBox').checked=c.logoBox!==false; $('pHeroStyle').value=c.heroStyle||'cards'; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
+function renderPosterForm(){ const c=S.cfg; $('pLogoUrl').value=c.logoUrl||''; tlSync(); $('pLogoBox').checked=c.logoBox!==false; $('pHeroStyle').value=c.heroStyle||'cards'; $('pHeroMode').value=c.heroMode||'squad'; $('pHero').checked=c.hero!==false; $('pLayout').value=layoutOf(); $('pStage').value=c.stage||''; $('pLive').value=c.live||''; $('pFlair').checked=flairOn(); $('pType').value=c.ptype||'res'; $('pSlotSub').value=c.slotSub==null?'LOBBY SLOTS':c.slotSub; $('pSlotNote').value=c.slotNote||''; fillSlotMapsSelect(); applyPType(); $('pPer').value=String(+c.perPage||8); $('pName').value=c.tournament; $('pSub').value=c.sub; $('pFoot').value=c.footer; $('pStat').checked=!!c.statusCol; $('pRound').checked=!!c.showRound; $('pCredit').value=c.credit==null?'':c.credit; $('pLogo').value=c.logo||'auto';
   $('pImg').value=c.img; $('pImgUrl').value=c.imgUrl; $('pImgUrl').style.display=c.img==='u'?'block':'none'; $('pMode').value=c.imgMode; $('pDim').value=c.dim;
   $('pSw').innerHTML=ACCENTS.map(a=>`<button style="background:${a}" data-a="${a}" class="${a===c.accent?'on':''}" aria-label="accent ${a}"></button>`).join('');
-  $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
-  document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); }
+  if($('pBd').dataset.k===c.accent&&$('pBd').children.length===BACKDROPS.length) $('pBd').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.bd===c.bd)); else {
+  $('pBd').dataset.k=c.accent; $('pBd').innerHTML=BACKDROPS.map(b=>`<button class="bdb ${b.id===c.bd?'on':''}" data-bd="${b.id}"><canvas width="240" height="135"></canvas><span>${b.name}</span></button>`).join('');
+  document.querySelectorAll('#pBd canvas').forEach((cv,i)=>{ const x=cv.getContext('2d'); x.save(); x.scale(240/1920,135/1080); drawBackdrop(x,1920,1080,BACKDROPS[i],c.accent); x.restore(); }); } }
 function renderRoundBar(){ $('roundBar').innerHTML=S.rounds.map(r=>{ const b=bundle(r.id), total=b.roster.length, done=Object.keys(b.mres).filter(g=>Object.keys(b.mres[g]).length>=Math.max(1,+r.matches||1)).length;
   return `<button data-r="${r.id}" class="${r.id===S.round?'on':''}">${esc(r.name)}<small>${done}/${total||'–'} groups done</small></button>`; }).join(''); }
 function switchRound(r){ if(r===S.round) return; flushAllLobby(); rememberLook(); save(); bind(r); applyLook(); lookFor=r; save(); curG=null; curM=1; viewM=0; viewD=0; draft=null; standG=null; $('deskBody').style.display='none'; $('draftCard').style.display='none'; $('rGroup').value='0'; renderAll(); toast(roundInfo(r).name); }
@@ -1136,7 +1155,7 @@ function renderCheck(){ const c=$('checkCard'), info=roundInfo(S.round), first=S
   }
   c.innerHTML=h; }
 function renderAll(){ renderRoundBar(); renderCheck(); $('brandName').textContent=S.cfg.tournament; document.title=S.cfg.tournament+' Points Desk'; document.documentElement.style.setProperty('--acc',S.cfg.accent);
-  setPill(); renderGrid(); renderStand(); renderSettings(); renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); if(document.querySelector('#overall.on')) renderOverall(); }
+  setPill(); renderGrid(); renderStand(); renderSettings(); if(document.querySelector('#poster.on')) renderPosterForm(); if(curG&&grp(curG)){ renderSlots(); } if(document.querySelector('#poster.on')) drawPoster(); if(document.querySelector('#overall.on')) renderOverall(); }
 let ovRows=[],ovCols=[];
 function renderOverall(){ const N=matchesN(), gs=Object.keys(S.mres).map(Number).sort((a,b)=>a-b), keepD=$('ovDay').value||'0', keepG=$('ovGroup').value||'0';
   const days=[...new Set(gs.flatMap(g=>Object.values(S.mres[g]).map(m=>m.day||0)))].filter(x=>x>0).sort((a,b)=>a-b);
@@ -1151,7 +1170,7 @@ function renderOverall(){ const N=matchesN(), gs=Object.keys(S.mres).map(Number)
   $('ovBox').innerHTML=`<table><thead><tr><th class="n">#</th><th>Team</th><th class="n">Group</th><th class="n">Grp #</th><th class="n">WWCD</th><th class="n">Place pts</th><th class="n">Kill pts</th>${ovCols.map(m=>`<th class="n">${mh(m)}</th>`).join('')}<th class="n">Total</th>${dsel?'':'<th class="n">Status</th>'}</tr></thead><tbody>`+
    ovRows.map(r=>`<tr class="${dsel?'':(r.qual?'q':'out')}"><td class="n rk">${r.rank}</td><td><b>${esc(r.team)}</b></td><td class="n">${r.g}</td><td class="n">${r.grank||'–'}</td><td class="n">${r.wwcd||'–'}</td><td class="n">${r.place}</td><td class="n">${r.kills}</td>${ovCols.map(m=>`<td class="n">${r.mt[m]!=null?r.mt[m]:'–'}</td>`).join('')}<td class="n tot">${r.total}</td>${dsel?'':`<td class="n"><span class="st ${r.qual?'q':'o'}">${r.qual?'QUALIFIED':'OUT'}</span></td>`}</tr>`).join('')+'</tbody></table>'; }
 const ovTsv=()=>['Rank','Team Name','Group','Group Rank','Chicken Dinner','Placement Point','Kill Point'].concat(ovCols.map(m=>'M'+m),['Total Point']).join('\t')+'\n'+ovRows.map(r=>[r.rank,r.team,r.g,r.grank||'',r.wwcd||'',r.place,r.kills].concat(ovCols.map(m=>r.mt[m]!=null?r.mt[m]:''),[r.total]).join('\t')).join('\n');
-function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); drawPoster(); } if(t==='overall') renderOverall(); if(t==='stand') renderStand(); }
+function tab(t){ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t)); document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); if(t==='poster'){ renderStand(); renderPosterForm(); drawPoster(); } if(t==='overall') renderOverall(); if(t==='stand') renderStand(); }
 
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button'); if(!t) return;
@@ -1242,21 +1261,21 @@ $('pHeroStyle').onchange=e=>{ S.cfg.heroStyle=e.target.value; save(); drawPoster
 /* ---- drag / zoom editor for the player photos ---- */
 let phSel=null, phBoxes=[], phDrag=null, phRaf=0, phEdit=false, curPsel=[];
 const phTeam=()=>norm($('pPlayers').dataset.team||'');
-function phAdj(name){ const t=phTeam(); S.cfg.adj=S.cfg.adj||{}; const a=S.cfg.adj[t]=S.cfg.adj[t]||{}; return a[norm(name)]=a[norm(name)]||{dx:0,dy:0,s:1}; }
+function phAdj(name){ if(name==='__tlogo') return tlAdj(); const t=phTeam(); S.cfg.adj=S.cfg.adj||{}; const a=S.cfg.adj[t]=S.cfg.adj[t]||{}; return a[norm(name)]=a[norm(name)]||{dx:0,dy:0,s:1}; }
 function phPlace(){ const o=$('phSel'), b=phEdit&&phSel&&phBoxes.find(q=>q.name===phSel); if(!b){ o.style.display='none'; return; }
-  const cv=$('cv'), k=cv.clientWidth/cv.width, hx=70, hy=560, lg=b.name==='__logo', x0=lg?b.x:Math.max(b.x,hx), x1=lg?b.x+b.w:Math.min(b.x+b.w,hx+740-22), y0=lg?b.y:Math.max(b.y,hy), y1=lg?b.y+b.h:Math.min(b.y+b.h,hy+280);
+  const cv=$('cv'), k=cv.clientWidth/cv.width, hx=70, hy=560, lg=b.name.startsWith('__'), x0=lg?b.x:Math.max(b.x,hx), x1=lg?b.x+b.w:Math.min(b.x+b.w,hx+740-22), y0=lg?b.y:Math.max(b.y,hy), y1=lg?b.y+b.h:Math.min(b.y+b.h,hy+280);
   o.style.display='block'; o.style.left=x0*k+'px'; o.style.top=y0*k+'px'; o.style.width=Math.max(4,(x1-x0)*k-6)+'px'; o.style.height=Math.max(4,(y1-y0)*k-6)+'px'; }
-function phCtl(){ $('phCtl').style.display=phEdit?'':'none'; $('phName').textContent=phSel==='__logo'?'Team logo':phSel||'click a player on the poster'; if(phSel){ $('phCut').checked=!!((S.cfg.cut||{})[phTeam()]||{})[norm(phSel)]; } if(phSel){ const a=phAdj(phSel); $('phS').value=a.s; $('phX').value=a.dx; $('phY').value=a.dy; } phPlace(); }
+function phCtl(){ $('phCtl').style.display=phEdit?'':'none'; const tlg=phSel==='__tlogo'; $('phName').textContent=tlg?'Tournament logo':phSel==='__logo'?'Team logo':phSel||'click a player on the poster'; $('phCut').parentElement.style.display=tlg?'none':''; $('phS').min=tlg?.3:.4; [['phX',tlg?-400:-1,tlg?1600:1,tlg?1:.01],['phY',tlg?-300:-1,tlg?1700:1,tlg?1:.01]].forEach(([i,a,b,c])=>{ $(i).min=a; $(i).max=b; $(i).step=c; }); if(phSel&&!tlg){ $('phCut').checked=!!((S.cfg.cut||{})[phTeam()]||{})[norm(phSel)]; } if(phSel){ const a=phAdj(phSel); $('phS').value=a.s; $('phX').value=a.dx; $('phY').value=a.dy; } phPlace(); }
 const phRedraw=()=>{ if(phRaf) return; phRaf=requestAnimationFrame(()=>{ phRaf=0; drawPoster(); }); };
 const cvPt=e=>{ const r=$('cv').getBoundingClientRect(), k=$('cv').width/r.width; return {x:(e.clientX-r.left)*k,y:(e.clientY-r.top)*k}; };
-const phHit=pt=>{ for(let i=phBoxes.length-1;i>=0;i--){ const b=phBoxes[i]; if(pt.x>=b.x&&pt.x<=b.x+b.w&&pt.y>=b.y&&pt.y<=b.y+b.h&&(b.name==='__logo'||(pt.y>=560&&pt.y<=840))) return b; } return null; };
+const phHit=pt=>{ for(let i=phBoxes.length-1;i>=0;i--){ const b=phBoxes[i]; if(pt.x>=b.x&&pt.x<=b.x+b.w&&pt.y>=b.y&&pt.y<=b.y+b.h&&(b.name.startsWith('__')||(pt.y>=560&&pt.y<=840))) return b; } return null; };
 $('pEditPh').onchange=e=>{ phEdit=e.target.checked; $('cv').style.cursor=phEdit?'move':''; $('cv').style.touchAction=phEdit?'none':''; phCtl(); };
 $('cv').addEventListener('pointerdown',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e)); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); phDrag={p:cvPt(e),a:Object.assign({},a),b}; $('cv').setPointerCapture(e.pointerId); phCtl(); });
-$('cv').addEventListener('pointermove',e=>{ if(!phDrag) return; const p=cvPt(e), a=phAdj(phSel); a.dx=Math.max(-1.5,Math.min(1.5,phDrag.a.dx+(p.x-phDrag.p.x)/phDrag.b.cw)); a.dy=Math.max(-1.5,Math.min(1.5,phDrag.a.dy+(p.y-phDrag.p.y)/phDrag.b.hh)); $('phX').value=a.dx; $('phY').value=a.dy; phRedraw(); });
+$('cv').addEventListener('pointermove',e=>{ if(!phDrag) return; const p=cvPt(e), a=phAdj(phSel); const lim=phSel==='__tlogo'?[-400,1600,-300,1700]:[-1.5,1.5,-1.5,1.5]; a.dx=Math.max(lim[0],Math.min(lim[1],phDrag.a.dx+(p.x-phDrag.p.x)/phDrag.b.cw)); a.dy=Math.max(lim[2],Math.min(lim[3],phDrag.a.dy+(p.y-phDrag.p.y)/phDrag.b.hh)); if(phSel==='__tlogo') tlSync(); $('phX').value=a.dx; $('phY').value=a.dy; phRedraw(); });
 const phEnd=()=>{ if(phDrag){ phDrag=null; save(); } }; $('cv').addEventListener('pointerup',phEnd); $('cv').addEventListener('pointercancel',phEnd);
 $('cv').addEventListener('wheel',e=>{ if(!phEdit||S.cfg.ptype==='slots') return; const b=phHit(cvPt(e))||phBoxes.find(q=>q.name===phSel); if(!b) return; e.preventDefault(); phSel=b.name; const a=phAdj(b.name); a.s=Math.max(.4,Math.min(3,a.s*Math.exp(-e.deltaY*.0015))); $('phS').value=a.s; clearTimeout(phSave); phSave=setTimeout(save,400); phCtl(); phRedraw(); },{passive:false});
 let phSave; ['phS','phX','phY'].forEach(id=>$(id).oninput=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=+$('phS').value; a.dx=+$('phX').value; a.dy=+$('phY').value; clearTimeout(phSave); phSave=setTimeout(save,400); phRedraw(); });
-$('phCut').onchange=e=>{ if(!phSel) return; const t=phTeam(); S.cfg.cut=S.cfg.cut||{}; (S.cfg.cut[t]=S.cfg.cut[t]||{})[norm(phSel)]=e.target.checked; cutErr=''; Object.keys(cutFail).forEach(k=>delete cutFail[k]); save(); drawPoster(); };
+$('phCut').onchange=e=>{ if(!phSel||phSel==='__tlogo') return; const t=phTeam(); S.cfg.cut=S.cfg.cut||{}; (S.cfg.cut[t]=S.cfg.cut[t]||{})[norm(phSel)]=e.target.checked; cutErr=''; Object.keys(cutFail).forEach(k=>delete cutFail[k]); save(); drawPoster(); };
 $('phCutAll').onclick=()=>{ const t=phTeam(); S.cfg.cut=S.cfg.cut||{}; curPsel.forEach(n=>{ (S.cfg.cut[t]=S.cfg.cut[t]||{})[norm(n)]=true; }); cutErr=''; Object.keys(cutFail).forEach(k=>delete cutFail[k]); save(); phCtl(); drawPoster(); };
 $('phCutSave').onclick=()=>{ const k=phSel&&cutKeyOf[norm(phSel)], b=k&&cutBlob[k]; if(!b) return toast('Turn on "Remove the background" for this picture first and wait until it finishes',true); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=(phSel==='__logo'?slugOf(($('pPlayers').dataset.team||'team'))+'-logo':phSel)+'.png'; a.click(); };
 $('phReset').onclick=()=>{ if(!phSel) return; const a=phAdj(phSel); a.s=1; a.dx=0; a.dy=0; save(); phCtl(); drawPoster(); };
@@ -1264,7 +1283,7 @@ $('phResetAll').onclick=()=>{ if(S.cfg.adj) delete S.cfg.adj[phTeam()]; save(); 
 const phMove=d=>{ if(!phSel) return; const arr=curPsel.slice(), i=arr.indexOf(phSel), j=i+d; if(i<0||j<0||j>=arr.length) return; [arr[i],arr[j]]=[arr[j],arr[i]]; (S.cfg.pick=S.cfg.pick||{})[phTeam()]=arr; save(); drawPoster(); };
 $('phL').onclick=()=>phMove(-1); $('phR').onclick=()=>phMove(1);
 $('pHeroMode').onchange=e=>{ S.cfg.heroMode=e.target.value; save(); drawPoster(); };
-$('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); Object.keys(plistCache).forEach(k=>delete plistCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} squad photos, ${j.teamsWithPlayers.length} teams with player pictures, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
+$('btnPhotoRefresh').onclick=async()=>{ try{ Object.keys(photoCache).forEach(k=>delete photoCache[k]); Object.keys(metaCache).forEach(k=>delete metaCache[k]); const j=await api('photos',{refresh:1}); toast(`Drive: ${j.photos.length} squad photos, ${j.teamsWithPlayers.length} teams with player pictures, ${j.logos.length} logos found`); }catch(e){ toast(e.message,true); } drawPoster(); };
 $('pFlair').onchange=e=>{ S.cfg.flair=e.target.checked; save(); drawPoster(); };
 $('pType').onchange=e=>{ S.cfg.ptype=e.target.value; save(); applyPType(); renderStand(); drawPoster(); };
 $('pSlotSub').oninput=e=>{ S.cfg.slotSub=e.target.value; save(); drawPoster(); };
@@ -1281,7 +1300,10 @@ $('pDim').oninput=e=>{ S.cfg.dim=+e.target.value; save(); drawPoster(); };
 $('pFoot').oninput=e=>{ S.cfg.footer=e.target.value; save(); drawPoster(); };
 $('pStat').onchange=e=>{ S.cfg.statusCol=e.target.checked; save(); drawPoster(); };
 $('pCredit').oninput=e=>{ S.cfg.credit=e.target.value; save(); drawPoster(); };
-$('pLogo').onchange=e=>{ S.cfg.logo=e.target.value; save(); drawPoster(); };
+$('pLogo').onchange=e=>{ S.cfg.logo=e.target.value; save(); tlSync(); drawPoster(); };
+$('pLogoUrl').oninput=e=>{ S.cfg.logoUrl=e.target.value; save(); clearTimeout(phSave); phSave=setTimeout(drawPoster,500); };
+['tlS','tlX','tlY'].forEach(id=>$(id).oninput=()=>{ const a=tlAdj(); a.s=+$('tlS').value; a.dx=+$('tlX').value; a.dy=+$('tlY').value; clearTimeout(phSave); phSave=setTimeout(save,400); phRedraw(); });
+$('tlReset').onclick=()=>{ const a=tlAdj(); a.s=1; a.dx=0; a.dy=0; save(); tlSync(); drawPoster(); };
 $('pRound').onchange=e=>{ S.cfg.showRound=e.target.checked; save(); drawPoster(); };
 $('pQual').oninput=e=>setQualify(standG,e.target.value);
 $('sQualG').oninput=e=>setQualify(standG,e.target.value);
