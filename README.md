@@ -91,3 +91,13 @@ Poster tab → Photo type "Individual players":
 - **Photo cards:** the last card now runs right up to the slanted edge, so there is no empty strip next to the stats.
 - **Logo:** in "Edit positions" mode the team logo can be selected, dragged, zoomed and nudged like a player. Tick/untick "White box behind the team logo" in the Poster form.
 - **Background remover:** select a player (or the logo) in "Edit positions" mode and tick "Remove the background of this picture", or press "Cut out all players". It runs inside your browser with the open-source IMG.LY model (AGPL licence). The first time it downloads the model (about 40 MB, needs internet) and takes a minute; after that each picture takes a few seconds. Finished cut-outs are kept on this device, so they are instant next time. "Save this cut-out" downloads the transparent PNG, which you can upload to the Drive folder instead of the original, so the cut-out is the same on every computer. Cut-out players get an accent-coloured card background.
+
+## v7 – Tournament logo, Round 4, faster
+- **Tournament name:** `tournament` in Code.gs CONFIG (now "A1RG COMMUNITY STARS"). The website header, browser tab title and all posters follow it. Change it there if the spelling should differ.
+- **Tournament logo:** Poster tab → Logo → "Tournament logo" (default; replaces the PUBG logo). On a light backdrop the white logo is turned dark automatically. Size / left-right / up-down sliders, and on the Broadcast poster you can also drag it ("Edit positions"). "Own logo link" lets you paste any other image link (use the raw link, e.g. https://raw.githubusercontent.com/...). Choose "PUBG Mobile Esports" in the same box to get the old logo back.
+- **Round 4:** tab "Round 4 - Playing", groups numbered as written in the tab, same two-way lobby sync, editable group details, own look (Violet Gold). Set the number of matches/days in Round format.
+- **Speed:**
+  - Sheet: the server reads each roster tab once per request (was 2–3 times), and many open browsers share one 5-second change check.
+  - Drive: the website asks for the list of pictures of ONE team (names + version), and downloads a picture only if this device has never seen that version. Pictures are stored on the device (IndexedDB), so the next poster is instant. Replaced pictures are noticed automatically.
+  - Website: the poster form (14 backdrop previews) is no longer rebuilt on every sync, only when the Poster tab is open and the colour changed.
+- Update: replace all of Code.gs (set `ADMIN_KEY` again) → Deploy → Manage deployments → pencil → New version. Replace index.html, Ctrl+F5.
